@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!-- https://go.microsoft.com/fwlink/?LinkID=208121. -->
+<Project>
+  <PropertyGroup>
+    <_PublishTargetUrl>D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\bin\Release\net7.0\publish\</_PublishTargetUrl>
+    <History>True|2025-08-14T11:05:15.4131297Z||;True|2025-08-14T17:54:29.7261723+07:00||;True|2025-08-14T15:57:52.8597973+07:00||;True|2025-08-12T17:05:21.5159918+07:00||;True|2025-08-11T18:09:27.6061242+07:00||;True|2025-08-11T17:26:16.5268743+07:00||;True|2025-08-11T13:12:24.8927681+07:00||;True|2025-08-11T12:24:24.5575938+07:00||;True|2025-08-11T11:58:18.2496674+07:00||;True|2025-08-08T15:52:12.1882278+07:00||;True|2025-08-07T15:36:10.4586813+07:00||;False|2025-08-07T15:34:28.0577248+07:00||;True|2025-08-07T15:05:22.7391977+07:00||;True|2025-08-07T15:00:11.0655963+07:00||;True|2025-08-07T14:23:58.9801816+07:00||;True|2025-08-07T13:14:47.0262808+07:00||;</History>
+    <LastFailureDetails />
+  </PropertyGroup>
+</Project>

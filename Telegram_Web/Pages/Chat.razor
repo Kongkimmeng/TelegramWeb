@@ -1,0 +1,410 @@
+﻿@page "/Chat"
+
+@inject NavigationManager Nav
+@inject HttpClient Http
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+@inject ITelegramService TelegramService
+@inject IAiService AiService
+@inject UserStateService UserState
+
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Net.Http.Json
+@using System.Text
+@using System.Text.Json;
+@using Telegram_Web.Shared.Components
+
+<PageTitle>Chat</PageTitle>
+<div class="row">
+    <div class="col-md-3">
+        <div class="card shadow-sm telegram-messages d-flex flex-column" style="height: calc(100vh - 75px);">
+            <div class="card-header bg-primary text-white fw-bold">
+                @if (hubConnection?.State == HubConnectionState.Connected)
+                {
+                    <label style="margin-bottom:0px">Groups Name 🟢</label>
+
+                }
+                else
+                {
+                    <label style="margin-bottom:0px">Groups Name 🔴</label>
+                }
+            </div>
+            <div class="d-flex align-items-center justify-content-start p-1 gap-4 border-bottom">
+                <div class="dropdown">
+                    <button class="btn btn-sm dropdown-toggle border-0" type="button" data-bs-toggle="dropdown">
+                        @selectedShow | @selectedSort
+                    </button>
+                    <ul class="dropdown-menu p-2" style="min-width: 200px;">
+
+                        <!-- Show section -->
+                        <li class="fw-bold text-muted small mb-1">Show</li>
+                        <li>
+                            <label class="dropdown-item">
+                                <input type="radio" name="showFilter" value="All" checked="@("All" == selectedShow)" />
+                                All
+                            </label>
+                        </li>
+                        <li>
+                            <label class="dropdown-item">
+                                <input type="radio" name="showFilter" value="Open" checked="@("Open" == selectedShow)" />
+                                Open
+                            </label>
+                        </li>
+                        <li>
+                            <label class="dropdown-item">
+                                <input type="radio" name="showFilter" value="Closed" checked="@("Closed" == selectedShow)" />
+                                Closed
+                            </label>
+                        </li>
+
+                        <li><hr class="dropdown-divider" /></li>
+
+                        <!-- Sort section -->
+                        <li class="fw-bold text-muted small mb-1">Sort</li>
+                        <li>
+                            <label class="dropdown-item">
+                                <input type="radio" name="sortOrder" value="Newest" checked="@("Newest" == selectedSort)" />
+                                Newest
+                            </label>
+                        </li>
+                        <li>
+                            <label class="dropdown-item">
+                                <input type="radio" name="sortOrder" value="Oldest" checked="@("Oldest" == selectedSort)" />
+                                Oldest
+                            </label>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="form-check form-switch m-0" style="display: flex; align-items: center;">
+                    <input class="form-check-input" type="checkbox" id="unreplySwitch" @bind="showUnreply">
+                    <label class="form-check-label ms-2" for="unreplySwitch">
+                        Unreply @(showUnreply ? "On" : "Off")
+                    </label>
+                </div>
+                <div>
+                    <button class="btn btn-sm border-0 btn-outline-secondary" style="box-shadow: none !important;" @onclick="ToggleSearch">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+            @if (showSearch)
+            {
+                <div class="d-flex align-items-center p-2 border-bottom gap-2">
+                    <input class="form-control form-control-sm" placeholder="Search..." @bind="searchText" />
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="CloseSearch">X</button>
+                </div>
+            }
+            <div class="list-group list-group-flush chat-list flex-grow-1 overflow-auto" style="padding:10px">
+                @if (chatList.Any())
+                {
+                    @foreach (var g in chatList)
+                    {
+                        <button class="list-group-item list-group-item-action @(selectedChatId == g.ChatID ? "chat-item-active" : "")"
+                                @onclick="() => OnChatClick(g.ChatID)">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-truncate" style="flex: 1; min-width: 0; color:black">
+                                    @g.Title
+                                </span>
+                                @if (g.IsRead == false)
+                                {
+                                    <span class="badge bg-success rounded-pill">New</span>
+                                }
+                            </div>
+                        </button>
+                    }               
+                }
+                else
+                {
+                    <div class="p-3 text-muted">No groups found.</div>
+                }
+            </div>
+        </div>
+
+
+
+    </div>
+    <div class="col-md-9">
+        <Tabs @ref="tabs" EnableFadeEffect="true">
+            <Tab Title="ChatMessages" Active="true">
+                <TitleTemplate>
+                    <Icon Name="IconName.PhoneFill" /> Chat Messages
+                </TitleTemplate>
+                <Content>
+                    <div  class="row flex-grow-1" style="height: calc(100vh - 115px); overflow: hidden;">
+                        <div class="col-md-12 d-flex flex-column" style="height: 100%;">
+                            <!-- Scrollable Messages -->
+                            <div id="messagesContainer" class="flex-grow-1 overflow-auto" style="padding-right: 5px; padding:10px;">
+                                @if (messages?.Count > 0)
+                                {                                     
+                                    @foreach (var msg in messages)
+                                    {
+                                        bool isMe = (msg.FirstName + " " + msg.LastName).Contains("(bot)", StringComparison.OrdinalIgnoreCase);
+
+                                        <div style="margin-bottom:5px" class="d-flex @(isMe ? "justify-content-end" : "justify-content-start message-bubble-container")">
+                                            <Card class=@($"message-bubble {(isMe ? "my-message" : "their-message")}")>
+                                                <CardBody style="padding:8px 12px">
+                                                    <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                    <div class="mt-1">@msg.Text</div>
+                                                    <small class="text-muted d-block mt-1">@msg.Datetime?.ToString("dd-MMM-yyyy HH:mm")</small>
+                                                </CardBody>
+                                            </Card>
+
+                                            <div style="@(isMe ? "display:none" : "")" class="message-actions">
+                                                <button title="AI Help" @onclick="() => OnAiHelpAsync(msg.Text)"><i class="bi bi-robot"></i></button>
+
+                                                <div class="dropdown d-inline">
+                                                    <button class="btn btn-light btn-sm dropdown-toggle" type="button"
+                                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="bi bi-translate"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu p-2" style="width: 100px; max-height: 150px; overflow-y: auto;">
+                                                        <input type="text" class="form-control form-control-sm mb-2" placeholder="Search..." style="width: 100%;" />
+                                                        <button class="dropdown-item p-1 text-truncate">English</button>
+                                                        <button class="dropdown-item p-1 text-truncate">Spanish</button>
+                                                        <button class="dropdown-item p-1 text-truncate">French</button>
+                                                    </div>
+                                                </div>
+                                                <button title="Share"><i class="bi bi-share"></i></button>
+                                                <button title="Copy"><i class="bi bi-clipboard"></i></button>
+                                            </div>
+                                        </div>                                      
+                                    }
+                                }
+                                else if (selectedChatId != 0)
+                                {
+                                    <div class="text-muted mt-5 text-center">No messages available for this chat.</div>
+                                }
+                                else
+                                {
+                                    <div class="text-muted mt-5 text-center">Please select a chat.</div>
+                                }
+                            </div>
+                            @responseMessage
+                        
+                            <Offcanvas @ref="offcanvas" Title="Chat Summary" Size="OffcanvasSize.Regular">
+                                <BodyTemplate>@((MarkupString)ConvertToHtml(summaryResult))</BodyTemplate>
+                            </Offcanvas>
+
+
+                            <div class="border-top pt-2 d-flex align-items-center gap-2" style="padding: 10px; background: white;">
+                                <Dropdown Color="DropdownColor.Info" Size="DropdownSize.Small" Disabled="@isLoadingAI">
+                                    <DropdownToggleButton>
+                                        @if (isLoadingAI)
+                                        {
+                                            <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.Light" />
+                                        }
+                                        else
+                                        {
+                                            <Icon Name="IconName.Stars" />
+                                        }
+                                    </DropdownToggleButton>
+
+                                    <DropdownMenu>
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => ByAIAsync("Summary"))">📝 Summary</DropdownItem>
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => ByAIAsync("Answer"))">✨ Answer</DropdownItem>
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => ByAIAsync("CheckSpelling"))">📑 Check Spelling</DropdownItem>
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => ByAIAsync("Translate"))">🌐 Translate To</DropdownItem>
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => ByAIAsync("Thanks"))">🙏 Thanks</DropdownItem>
+                                    </DropdownMenu>
+                                </Dropdown>
+                                <textarea id="myTextarea"
+                                          class="form-control form-control-sm border rounded px-2 py-1"
+                                          style="flex-grow: 1; resize: none; overflow-y: auto; max-height: 7em;"
+                                          @bind="newMessage"
+                                          placeholder="Type a message..."
+                                          rows="1"
+                                          @oninput="OnInputResize"></textarea>
+                                <Button Size="ButtonSize.Small" class="btn btn-primary" @onclick="SendReply">Send</Button>
+                            </div>
+                        </div>
+                    </div>
+                </Content>
+            </Tab>
+            <Tab Title="Assign" OnClick="@((args) => OnTabClick(args, "Assign"))">
+                <TitleTemplate>
+                    <Icon Name="IconName.PersonFill" /> Assign
+                </TitleTemplate>                
+                <Content>
+                    @if (selectedChatId == 0)
+                    {
+                    <div class="text-muted mt-5 text-center">Please select a chat.</div>
+                    }
+                    else
+                    {
+                        <Assign Title="Chat Messages" ChatID="@selectedChatId" />
+                    }
+                </Content>
+            </Tab>
+
+            <Tab Title="Summary" OnClick="@((args) => OnTabClick(args, "Summary"))">
+                <TitleTemplate>
+                    <Icon Name="IconName.BookFill" /> Summary
+                </TitleTemplate>
+                <Content>
+                     @if (selectedChatId == 0)
+                    {
+                    <div class="text-muted mt-5 text-center">Please select a chat.</div>
+                    }
+                    else
+                    {               
+                        <div class="d-flex justify-content-center align-items-center p-3 border-bottom mb-1" style="margin: 0;">
+                            <Button Size="ButtonSize.Small" Style="width:100px" class="btn btn-primary" @onclick="LoadSummaryAsync">
+                                Summary
+                            </Button>
+                        </div>
+
+                        <div style="padding:10px" >
+                            <p>
+                                Summary: @if (isSummaryLoading)
+                                {
+                                    <label>Loading summary...</label>
+                                }
+                                                            else if (!string.IsNullOrWhiteSpace(summaryData))
+                                {
+                                    <label>@summaryData</label>
+                                }
+                                else
+                                {
+                                    <label>No summary available</label>
+                                }
+                            </p>                        
+                        </div>
+                    }
+                </Content>
+            </Tab>
+            <Tab Title="Chat Status" OnClick="@((args) => OnTabClick(args, "Status"))">
+                   <TitleTemplate>
+                    <Icon Name="IconName.BookmarkFill" />Chat Status
+                </TitleTemplate>
+                <Content>           
+                    <h4>This Chat is Open</h4>
+                  
+                </Content>
+            </Tab>
+        </Tabs>
+    </div>
+</div>
+<style>
+    .list-group-item {
+        background-color: white;
+        color: black;
+        border-radius: 10px !important;
+        border-bottom: 2px solid #ddd !important;
+        border: 1px solid;
+        transition: background-color 0.3s ease;
+    }
+
+        .list-group-item:hover {
+            background-color: darkgray !important;    /* light gray on hover */
+            color: black !important;
+        }
+
+    .chat-item-active {
+        background-color: lightcyan !important; /* darker gray for active */
+        border-color: transparent !important;
+        border-bottom: 2px solid #ddd !important;
+        font-weight: 600;
+    }
+
+        .chat-item-active:hover {
+            background-color: darkgray !important;
+        }
+
+    .tab-content{
+        border: 1px solid #ddd;
+        height: calc(100vh - 115px);
+    }
+
+
+    .row {
+        --bs-gutter-x: 0.5rem;
+    }
+
+   
+    .dropdown-toggle:focus {
+        /* background-color: transparent !important; */
+        box-shadow: none !important;
+    }
+
+    .dropdown-toggle:hover{
+       background-color: darkgray;
+    }
+    
+</style>
+<style>
+    .message-bubble-container {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .message-actions {
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    /* Show icons when hovering the whole message bubble container */
+    .message-bubble-container:hover .message-actions {
+        opacity: 1;
+    }
+
+    .message-actions button {
+        background-color: lightgray;
+        border: none;
+        padding: 4px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+        .message-actions button:hover {
+            background-color: lightblue;
+        }
+
+
+
+    /*message label*/
+    .message-bubble {
+        display: inline-block;
+        max-width: 70%;
+        border-radius: 10px;
+        word-wrap: break-word;
+    }
+
+    .my-message {
+        background-color: lightcyan; /* green bubble */
+        align-self: flex-end;
+    }
+
+    .their-message {
+        background-color: whitesmoke;
+        align-self: flex-start;
+    }
+
+</style>
+
+<style>
+    .translate-dropdown {
+        position: absolute;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        padding: 5px 0;
+        margin-top: 5px;
+        z-index: 1000;
+        width: 120px;
+    }
+
+        .translate-dropdown [role="menuitem"] {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+            .translate-dropdown [role="menuitem"]:hover {
+                background-color: #f0f0f0;
+            }
+
+</style>

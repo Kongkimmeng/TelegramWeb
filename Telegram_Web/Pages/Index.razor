@@ -1,0 +1,36 @@
+﻿@page "/"
+@inject UserStateService UserState
+
+<PageTitle>Index</PageTitle>
+
+Please save empid = "admin" to see all
+<br />
+if save empid will see group assign only
+<br />
+Open Page as
+<h3>Welcome, @username (ID: @userid)</h3>
+
+<br />
+
+<input @bind="username" placeholder="username" />
+<input @bind="userid" placeholder="userid" />
+
+
+<Button class="btn btn-primary" Size="ButtonSize.ExtraSmall" @onclick="SaveUser">Save</Button>
+
+<Button class="btn btn-success" Size="ButtonSize.ExtraSmall" @onclick="LoadUser">Load User</Button>
+
+@code{
+    private string username = "";
+    private string userid = "";
+    private async Task SaveUser()    
+    {
+        await UserState.SetUserAsync(username, userid);
+    }
+    private async Task LoadUser()
+    {
+        var result = await UserState.GetUserAsync();
+        username = result.username;
+        userid = result.userid;
+    }
+}

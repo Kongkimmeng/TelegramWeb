@@ -1,0 +1,369 @@
+﻿@inject IConfiguration Configuration
+@inject IJSRuntime JS
+<div class="row">
+    <!-- Left Side (40%) -->
+    <div class="col-6 p-2" style="border-right:solid 1px #ccc;">
+        @if (isLoading)
+        {
+            <div class="d-flex align-items-center p-3 border rounded shadow-sm bg-white">
+                <div class="spinner-border text-primary me-2" role="status" style="width: 1.5rem; height: 1.5rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <span>Loading employee list...</span>
+            </div>
+        }
+        else
+        {
+            <div class="row p-3 align-items-center border-bottom mb-1 mx-auto" style="margin: 0px;">
+                <div class="col-auto">
+                    <select @bind="selectedEmpId" class="form-select form-select-sm" style="font-size:13px; min-width: 200px;">
+                        @foreach (var emp in EmpList)
+                        {
+                            <option value="@emp.EmpId">@emp.EmpId : @emp.TelegramFullName</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary btn-sm" @onclick="OnAssign">Assign</button>
+                </div>
+            </div>
+           
+        }
+
+        <div class="p-2">
+            @if (EmpList_Assigned.Count == 0)
+            {
+                <div class="text-center text-muted border rounded p-3 bg-light">
+                    No employees assigned yet.
+                </div>
+            }
+            else
+            {
+                @foreach (var emp in EmpList_Assigned)
+                {
+                    <div class="d-flex justify-content-between align-items-center border app-card p-2 mb-2 mx-auto" style="width:300px;">
+                        <div style="padding-left:10px">
+                            <div class="fw-bold">@emp.TelegramFullName</div>
+                            <small class="text-muted">ID: @emp.EmpId</small>
+                        </div>
+                        <Button class="btn btn-danger ms-auto"
+                                Size="ButtonSize.ExtraSmall"
+                                @onclick="() => OnUnassign(emp)">
+                            Unassign
+                        </Button>
+                    </div>
+                }
+            }
+        </div>
+
+    </div>
+
+    <div class="col-6 p-2">
+
+        <div class="row p-3 align-items-center border-bottom mb-1" style="margin: 0px;">
+            <div class="col-auto">
+                <select @bind="selectedTeamId" class="form-select form-select-sm" style="font-size:13px; min-width: 200px;">
+                    @foreach (var team in TeamList)
+                    {
+                        <option value="@team.TeamID"> @team.TeamName</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-primary btn-sm" @onclick="OnAssignTeam">Assign Team</button>
+            </div>
+        </div>
+
+        <div class="p-2">
+            @if (TeamList_Assigned.Count == 0)
+            {
+                <div class="text-center text-muted border rounded p-3 bg-light">
+                    No Team assigned yet.
+                </div>
+            }
+            else
+            {
+                @foreach (var team in TeamList_Assigned)
+                {
+                    <div class="d-flex justify-content-between align-items-center border app-card1 p-2 mb-2 mx-auto" style="width:300px;">
+                        <div style="padding-left:10px">
+                            <div class="fw-bold">@team.TeamName</div>
+                        </div>
+                        <Button class="btn btn-danger"
+                                Size="ButtonSize.ExtraSmall"
+                                @onclick="() => OnUnassignTeam(team)">
+                            Unassign
+                        </Button>
+                    </div>
+                }
+            }
+        </div>
+
+
+    </div>
+</div>
+<style>
+    .app-card {
+        border-radius: 20px; /* bigger than Bootstrap default */
+        color: royalblue;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .app-card1 {
+        color: royalblue;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+</style>
+
+@code {
+    [Parameter] public string Title { get; set; }
+    [Parameter] public long ChatID { get; set; }
+
+
+    private string? messageError { get; set; }
+    string _connectionString = string.Empty;
+    private SqlConnection conn { get; set; } = default!;
+
+    private List<TelegramEmp> EmpList = new();
+    private List<TelegramEmp> EmpList_Assigned = new();
+
+    private List<TeamModel> TeamList = new();
+    private List<TeamModel> TeamList_Assigned = new();
+
+
+    private string selectedEmpId;
+    private int selectedTeamId;
+
+
+    private bool isLoading = false;
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _connectionString = Configuration.GetConnectionString("AMIS_Data");
+
+            using var connection = new SqlConnection(_connectionString);
+
+            // Load employee list
+            var employees = await connection.QueryAsync<TelegramEmp>(
+                "sp_Telegram_EmpList",
+                commandType: CommandType.StoredProcedure
+            );
+            EmpList = employees?.ToList() ?? new List<TelegramEmp>();
+
+            // Load team names
+            var teams = await connection.QueryAsync<TeamModel>(
+                "sp_Telegram_TeamList",
+                commandType: CommandType.StoredProcedure
+            );
+            TeamList = teams?.ToList() ?? new List<TeamModel>();
+
+
+
+        }
+        catch (Exception ex)
+        {
+            messageError = ex.Message;
+        }
+    }
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ChatID != 0) // Only load if ChatID is valid
+        {
+            await OnLoadAssign();
+            await OnLoadAssignGroup();
+
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+        }
+    }
+
+    private async Task OnAssign()
+    {
+        var emp = EmpList
+            .FirstOrDefault(e => e.EmpId == selectedEmpId && !EmpList_Assigned.Any(a => a.EmpId == e.EmpId));
+
+        if (emp != null)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "sp_Telegram_EmpList_Assign_Set",
+                new
+                {
+                    ChatId = ChatID,
+                    EmpId = emp.EmpId,
+                    Assign = true
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            EmpList_Assigned.Add(emp);
+        }
+    }
+
+    private async Task OnAssignTeam()
+    {
+        var team = TeamList.FirstOrDefault(e => e.TeamID == selectedTeamId && !TeamList_Assigned.Any(a => a.TeamID == e.TeamID));
+
+        if (team != null)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "[dbo].[sp_Telegram_Group_Assign_Set]",
+                new
+                {
+                    ChatId = ChatID,
+                    TeamID = team.TeamID,
+                    Assign = true
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            TeamList_Assigned.Add(team);
+        }
+
+    }
+
+
+
+    private async Task OnUnassign(TelegramEmp emp)
+    {
+        var assigned = EmpList_Assigned.FirstOrDefault(e => e.EmpId == emp.EmpId);
+
+        if (assigned != null)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "[dbo].[sp_Telegram_EmpList_Assign_Set]",
+                new
+                {
+                    ChatId = ChatID,
+                    EmpId = assigned.EmpId,
+                    Assign = false
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            EmpList_Assigned.Remove(assigned);
+        }
+    }
+    private async Task OnUnassignTeam(TeamModel team)
+    {
+        var Teamassigned = TeamList_Assigned.FirstOrDefault(e => e.TeamID == team.TeamID);
+
+        if (Teamassigned != null)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "[dbo].[sp_Telegram_Group_Assign_Set]",
+                new
+                {
+                    ChatId = ChatID,
+                    TeamID = Teamassigned.TeamID,
+                    Assign = false
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            TeamList_Assigned.Remove(Teamassigned);
+        }
+    }
+
+    private async Task OnLoadAssign()
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("ChatID", ChatID, DbType.Int64);
+
+        try
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                var respond = await conn.QueryAsync<TelegramEmp>(
+                    "sp_Telegram_EmpList_Assign_Get",
+                    parameters,
+                    commandType: CommandType.StoredProcedure
+                );
+
+                EmpList_Assigned = respond?.ToList() ?? new List<TelegramEmp>();
+            }
+        }
+        catch (Exception ex)
+        {
+            messageError = $"Error: {ex.Message}";
+        }
+    }
+    private async Task OnLoadAssignGroup()
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("ChatID", ChatID, DbType.Int64);
+
+        try
+        {
+            using (var conn = new SqlConnection(_connectionString))
+            {
+                await conn.OpenAsync();
+
+                var respond = await conn.QueryAsync<TeamModel>(
+                    "sp_Telegram_Group_Assign_Get",
+                    parameters,
+                    commandType: CommandType.StoredProcedure
+                );
+
+                TeamList_Assigned = respond?.ToList() ?? new List<TeamModel>();
+            }
+        }
+        catch (Exception ex)
+        {
+            messageError = $"Error: {ex.Message}";
+        }
+    }
+
+
+    // protected override void OnInitialized()
+    // {
+    //     try
+    //     {
+    //         _connectionString = Configuration.GetConnectionString("AMIS_").ToString();
+    //         conn = new SqlConnection(_connectionString);
+
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         messageError = ex.Message;
+    //     }
+    // }
+
+
+    // protected override async Task OnAfterRenderAsync(bool firstRender)
+    // {
+    //     if (firstRender)
+    //     {
+
+
+
+    //     }
+    // }
+
+
+
+
+
+
+
+
+}
+
+
+
+
