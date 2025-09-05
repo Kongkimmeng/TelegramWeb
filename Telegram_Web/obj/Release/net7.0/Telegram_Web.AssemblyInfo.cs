@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Telegram_Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d68cd227112bd88f80d13dbd033143ddee0be797")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d3addbc4b8ace5e7c3927522c63db83fa370c6a5")]
 [assembly: System.Reflection.AssemblyProductAttribute("Telegram_Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Telegram_Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -7,6 +7,10 @@
       "RelativeMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|solutionrelative:telegram_web\\pages\\report.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
+      "AbsoluteMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|d:\\telegram project\\telegramweb\\telegram_web\\pages\\index.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|solutionrelative:telegram_web\\pages\\index.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|d:\\telegram project\\telegramweb\\telegram_web\\pages\\inbox.razor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|solutionrelative:telegram_web\\pages\\inbox.razor.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
@@ -17,10 +21,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|d:\\telegram project\\telegramweb\\telegram_web\\pages\\empmonitoring.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|solutionrelative:telegram_web\\pages\\empmonitoring.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|d:\\telegram project\\telegramweb\\telegram_web\\pages\\index.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}",
-      "RelativeMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|solutionrelative:telegram_web\\pages\\index.razor||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{316BFC68-8533-40D4-AB9B-DB6631042E45}|Telegram_Web\\Telegram_Web.csproj|d:\\telegram project\\telegramweb\\telegram_web\\pages\\error.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
@@ -150,11 +150,19 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 7,
+          "SelectedChildIndex": 9,
           "Children": [
             {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:128:0:{116d2292-e37d-41cd-a077-ebacac4c8cc4}"
+            },
+            {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Inbox.razor",
               "DocumentMoniker": "D:\\TELEGRAM PROJECT\\TelegramWeb\\Telegram_Web\\Pages\\Inbox.razor",
               "RelativeDocumentMoniker": "Telegram_Web\\Pages\\Inbox.razor",
@@ -162,12 +170,11 @@
               "RelativeToolTip": "Telegram_Web\\Pages\\Inbox.razor",
               "ViewState": "AgIAACoAAAAAAAAAAAAAAFQAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-09-03T08:48:00.529Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-09-03T08:48:00.529Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "Inbox.razor.cs",
               "DocumentMoniker": "D:\\TELEGRAM PROJECT\\TelegramWeb\\Telegram_Web\\Pages\\Inbox.razor.cs",
               "RelativeDocumentMoniker": "Telegram_Web\\Pages\\Inbox.razor.cs",
@@ -175,12 +182,11 @@
               "RelativeToolTip": "Telegram_Web\\Pages\\Inbox.razor.cs",
               "ViewState": "AgIAAIAAAAAAAAAAAAAIwIMAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-08-25T12:40:24.673Z",
-              "EditorCaption": ""
+              "WhenOpened": "2025-08-25T12:40:24.673Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 4,
               "Title": "EmpMonitoring.razor",
               "DocumentMoniker": "D:\\TELEGRAM PROJECT\\TelegramWeb\\Telegram_Web\\Pages\\EmpMonitoring.razor",
               "RelativeDocumentMoniker": "Telegram_Web\\Pages\\EmpMonitoring.razor",
@@ -246,14 +252,14 @@
               "RelativeDocumentMoniker": "Telegram_Web\\Pages\\Report.razor",
               "ToolTip": "D:\\TELEGRAM PROJECT\\TelegramWeb\\Telegram_Web\\Pages\\Report.razor",
               "RelativeToolTip": "Telegram_Web\\Pages\\Report.razor",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAEAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABMAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
               "WhenOpened": "2025-09-03T05:36:35.665Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
+              "DocumentIndex": 1,
               "Title": "Index.razor",
               "DocumentMoniker": "D:\\TELEGRAM PROJECT\\TelegramWeb\\Telegram_Web\\Pages\\Index.razor",
               "RelativeDocumentMoniker": "Telegram_Web\\Pages\\Index.razor",
@@ -261,7 +267,8 @@
               "RelativeToolTip": "Telegram_Web\\Pages\\Index.razor",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAABcAAAAGAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000759|",
-              "WhenOpened": "2025-08-25T14:04:03.789Z"
+              "WhenOpened": "2025-08-25T14:04:03.789Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
