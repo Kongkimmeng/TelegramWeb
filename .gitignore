@@ -1,4 +1,3 @@
-cat > .gitignore <<EOL
 # Visual Studio
 .vs/
 *.suo
@@ -25,4 +24,3 @@ wwwroot/downloads/
 # Other
 *.local.json
 *.pubxml.user
-EOL
