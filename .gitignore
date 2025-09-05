@@ -25,4 +25,5 @@ wwwroot/downloads/
 # Other
 *.local.json
 *.pubxml.user
-EOL
+/Telegram_Web/narortestonly.json
+/Telegram_Web/narortest/narorttest1.json
