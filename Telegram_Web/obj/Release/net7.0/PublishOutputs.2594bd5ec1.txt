@@ -1,7 +1,0 @@
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\Telegram_Web.exe
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\appsettings.Development.json
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\appsettings.json
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\Telegram_Web.dll
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\Telegram_Web.deps.json
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\Telegram_Web.runtimeconfig.json
-D:\TELEGRAM PROJECT\Telegram_Web\Telegram_Web\Telegram_Web\obj\Release\net7.0\PubTmp\Out\Telegram_Web.pdb
