@@ -1,29 +1,53 @@
-cat > .gitignore <<EOL
 # Visual Studio
 .vs/
-*.suo
 *.user
-*.userosscache
-*.sln.docstates
+*.suo
 
 # Build results
-[Bb]in/
-[Oo]bj/
-[Ll]og/
-[Tt]emp/
-*.dll
-*.exe
-*.pdb
-*.cache
-*.db
-*.vsidx
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
+[Aa]ppPackages/
+[Bb]uild[Ll]og.*
 
-# Publish
-publish/
-wwwroot/downloads/
+# ASP.NET / Blazor
+wwwroot/lib/
+wwwroot/dist/
+wwwroot/node_modules/
+node_modules/
+dist/
 
-# Other
-*.local.json
-*.pubxml.user
-/Telegram_Web/narortestonly.json
-/Telegram_Web/narortest/narorttest1.json
+# Publish outputs
+*.publish/
+*.pubxml
+*.publishproj
+
+# Resharper / Rider
+*.DotSettings.user
+.idea/
+
+# NuGet
+*.nupkg
+*.snupkg
+*.nuspec
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Logs
+*.log
+
+# Others
+*.dbmdl
+*.bak
+*.swp
+*.tmp
+*.DS_Store
+Thumbs.db
+
+# Sensitive files
+appsettings.*.json
+secrets.json
