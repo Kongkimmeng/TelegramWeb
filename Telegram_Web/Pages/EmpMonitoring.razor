@@ -4,7 +4,7 @@
 
 <div style="padding:5px 20px 20px 20px;">
     <div class="d-flex align-items-center justify-content-between" style="margin-top:-5px;border-bottom:1px solid #ccc;">
-        <h5 style="margin-bottom: 5px;">Employee Monitoring</h5>
+        <h5 style="margin-bottom: 5px;">Employee Monitoring</h5>     
     </div>
     <div class="d-flex align-items-center gap-3 mb-2 mt-2">
         <!-- Team Dropdown -->
@@ -227,5 +227,42 @@
     private async Task OnSearch()
     {
         await LoadData();
+    }
+
+
+    private async Task SaveAllImagesToDisk()
+    {
+        // Use project folder for testing
+        string folderPath = Path.Combine(Environment.CurrentDirectory, "wwwroot", "downloads", "profile");
+        Directory.CreateDirectory(folderPath);
+
+        foreach (var emp in empCards.Where(e => !string.IsNullOrEmpty(e.ImageDataUrl)))
+        {
+            try
+            {
+                string base64Data = emp.ImageDataUrl;
+                var commaIndex = base64Data.IndexOf("base64,");
+                if (commaIndex >= 0)
+                    base64Data = base64Data.Substring(commaIndex + 7);
+
+                if (string.IsNullOrWhiteSpace(base64Data) || base64Data.Length < 50)
+                {
+                    Console.WriteLine($"skip invalid image: {emp.Name}");
+                    continue;
+                }
+
+                byte[] imageBytes = Convert.FromBase64String(base64Data);
+                string filePath = Path.Combine(folderPath, $"profile_emp{emp.EmpID}.webp");
+
+                await File.WriteAllBytesAsync(filePath, imageBytes);
+                Console.WriteLine($"save {emp.Name}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to save {emp.Name}: {ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"All images saved to: {folderPath}");
     }
 }

@@ -372,9 +372,9 @@
                                                 </CardBody>
                                             </Card>
 
-                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.EmpId}.webp")))
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_emp{msg.EmpId}.webp")))
                                             {
-                                                <img src="@($"/downloads/profile/profile_{msg.EmpId}.webp")"
+                                                <img src="@($"/downloads/profile/profile_emp{msg.EmpId}.webp")"
                                                      alt="Profile"
                                                      class="profile-circle" />
                                             }

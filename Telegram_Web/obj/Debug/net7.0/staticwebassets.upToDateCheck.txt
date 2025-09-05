@@ -474,6 +474,7 @@ wwwroot\downloads\photo\photo_20250829_112913.jpg
 wwwroot\downloads\profile\profile_00021.webp
 wwwroot\downloads\profile\profile_00026.webp
 wwwroot\downloads\profile\profile_00032.webp
+wwwroot\downloads\profile\profile_00064.webp
 wwwroot\downloads\profile\profile_00074.webp
 wwwroot\downloads\profile\profile_00075.webp
 wwwroot\downloads\profile\profile_00666.webp
