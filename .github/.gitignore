@@ -1,0 +1,28 @@
+cat > .gitignore <<EOL
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Tt]emp/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.db
+*.vsidx
+
+# Publish
+publish/
+wwwroot/downloads/
+
+# Other
+*.local.json
+*.pubxml.user
+EOL
