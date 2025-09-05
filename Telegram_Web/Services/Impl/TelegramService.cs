@@ -1,7 +1,12 @@
-﻿using System.Net.Http;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Options;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Telegram_Web.Models;
+using Telegram_Web.Models.Ai;
 using Telegram_Web.Models.Telegram;
 using Telegram_Web.Pages;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -10,94 +15,159 @@ namespace Telegram_Web.Services.Impl
 {
     public class TelegramService : ITelegramService
     {
-        private readonly HttpClient _http;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly string _botToken;
 
-        public TelegramService(HttpClient http)
+        public TelegramService(IHttpClientFactory httpClientFactory,  IConfiguration configuration)
         {
-            _http = http;
+            _httpClientFactory = httpClientFactory;
+            _botToken = configuration["TelegramSettings:BotToken"];  
         }
 
-        public async Task<List<TelegramChatStatus>> GetChatStatusListAsync(string empId)
+
+
+        //public async Task<bool> SendTextMessageAsync(string chatId, string text)
+        //{
+           
+        //    // Use IHttpClientFactory to create client
+        //    var client = _httpClientFactory.CreateClient();
+
+        //    var url = $"https://api.telegram.org/bot{_botToken}/sendMessage";
+
+        //    var payload = new Dictionary<string, string>
+        //    {
+        //        { "chat_id", chatId },
+        //        { "text", text }
+        //    };
+
+        //    using var content = new FormUrlEncodedContent(payload);
+        //    var response = await client.PostAsync(url, content);
+
+        //    return response.IsSuccessStatusCode;
+        //}
+        public async Task<int?> SendTextMessageAsync(string chatId, string text, int replyToMessageId = 0)
         {
-            string url = $"api/telegram/listchat?empId={empId}";
-            return await _http.GetFromJsonAsync<List<TelegramChatStatus>>(url) 
-                   ?? new List<TelegramChatStatus>();
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://api.telegram.org/bot{_botToken}/sendMessage";
+
+            // Prepare payload
+            var payload = new Dictionary<string, string>
+            {
+                { "chat_id", chatId },
+                { "text", text }
+            };
+
+            if (replyToMessageId > 0)
+            {
+                payload.Add("reply_to_message_id", replyToMessageId.ToString());
+            }
+
+            var content = new FormUrlEncodedContent(payload);
+            var response = await client.PostAsync(url, content);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null; // or throw exception depending on your needs
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            // Telegram response looks like: { "ok":true, "result": { "message_id":123, ... } }
+            if (root.TryGetProperty("result", out var result) &&
+                result.TryGetProperty("message_id", out var messageIdElement))
+            {
+                return messageIdElement.GetInt32();
+            }
+
+            return null;
         }
 
 
-        public async Task<string> GetSummaryAsync(string fromDate, string toDate, long chatId)
-        {  
-            string formattedFromDate = DateTime.TryParse(fromDate, out var fd) ? fd.ToString("dd-MMM-yyyy") : fromDate;
-            string formattedToDate = DateTime.TryParse(toDate, out var td) ? td.ToString("dd-MMM-yyyy") : toDate;
 
-             var url = $"api/telegram/GetSummary?sdate={formattedFromDate}&edate={formattedToDate}&chatid={chatId}";
-            return await _http.GetStringAsync(url);
-        }
 
-        public async Task<List<TelegramEmp>> GetTelegramEmp()
+
+
+        public async Task<bool> SendVoiceMessageAsync(string botToken, string chatId, byte[] audioData)
         {
-             string url = $"api/telegram/telegram_emp";
-             return await _http.GetFromJsonAsync<List<TelegramEmp>>(url) ?? new List<TelegramEmp>();
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://api.telegram.org/bot{botToken}/sendVoice";
+
+            using var content = new MultipartFormDataContent();
+            content.Add(new StringContent(chatId), "chat_id");
+
+            var audioContent = new ByteArrayContent(audioData);
+            audioContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("audio/ogg");
+
+            // Telegram API requires a filename for the voice file part.
+            content.Add(audioContent, "voice", "voice.ogg");
+
+            var response = await client.PostAsync(url, content);
+
+            return response.IsSuccessStatusCode;
         }
 
-        public async Task<List<TelegramEmp>> GetTelegramEmpAssign(long chatid)
+        public async Task<bool> SendPhotoAsync(string botToken, string chatId, byte[] photoData, string fileName, string? caption = null)
         {
-             string url = $"api/telegram/telegram_emp_by_chatid?chatid={chatid}";
-             return await _http.GetFromJsonAsync<List<TelegramEmp>>(url) ?? new List<TelegramEmp>();
+            var client = _httpClientFactory.CreateClient();
+            var url = $"https://api.telegram.org/bot{botToken}/sendPhoto";
+
+            using var content = new MultipartFormDataContent();
+
+            // Add required fields: chat_id and the photo file
+            content.Add(new StringContent(chatId), "chat_id");
+            var photoContent = new ByteArrayContent(photoData);
+            photoContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            content.Add(photoContent, "photo", fileName);
+
+            // Add the optional caption if it exists
+            if (!string.IsNullOrEmpty(caption))
+            {
+                content.Add(new StringContent(caption), "caption");
+            }
+
+            var response = await client.PostAsync(url, content);
+
+            return response.IsSuccessStatusCode;
         }
 
-        public async Task<List<TelegramChatStatus>> GetTelegramGroups(DateTime? fromDate, DateTime? toDate, string? groupType, string? title)
+        public async Task<bool> SendTelegramNotification(string telegramUserId, string text)
         {
-                string url = "api/telegram/GetGroups?";
+            var url = $"https://api.telegram.org/bot{_botToken}/sendMessage";
 
-                if (fromDate != null)
-                    url += $"fromDate={fromDate:yyyy-MM-dd}&";
-                if (toDate != null)
-                    url += $"toDate={toDate:yyyy-MM-dd}&";
-                if (!string.IsNullOrEmpty(groupType))
-                    url += $"groupType={Uri.EscapeDataString(groupType)}&";
-                if (!string.IsNullOrEmpty(title))
-                    url += $"title={Uri.EscapeDataString(title)}&";
+            using var client = new HttpClient();
+            var response = await client.PostAsync(url, new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "chat_id", telegramUserId },
+                { "text", text }
+            }));
 
-                url = url.TrimEnd('&', '?');
-
-                return await _http.GetFromJsonAsync<List<TelegramChatStatus>>(url) ?? new List<TelegramChatStatus>();
+            return response.IsSuccessStatusCode;
         }
 
-        public async Task<List<TelegramMessage>> GetTelegramMessages(DateTime? fromDate, DateTime? toDate, long? chatid)
-        {
-            string url = "api/telegram/GetMessages?";
-
-                if (fromDate != null)
-                    url += $"fromDate={fromDate:yyyy-MM-dd}&";
-                if (toDate != null)
-                    url += $"toDate={toDate:yyyy-MM-dd}&";               
-                if (chatid.HasValue)
-                    url += $"chatId={chatid.Value}&";
 
 
 
-                url = url.TrimEnd('&', '?');
-                return await _http.GetFromJsonAsync<List<TelegramMessage>>(url) ?? new List<TelegramMessage>();
-        }
+        //public async Task PostMarkAsReadAsync(long chatId, string empId)
+        //{
+        //        var url = $"api/telegram/markread?empid={empId}&chatid={chatId}";
+        //        await _http.PostAsync(url, null);
+        //}
 
-        public async Task PostMarkAsReadAsync(long chatId, string empId)
-        {
-                var url = $"api/telegram/markread?empid={empId}&chatid={chatId}";
-                await _http.PostAsync(url, null);
-        }
+        //public async Task<HttpResponseMessage> PostSendMessageAsync(TelegramMessage message)
+        //{
+        //      return await _http.PostAsJsonAsync("api/telegram/send", message);
+        //}
 
-        public async Task<HttpResponseMessage> PostSendMessageAsync(TelegramMessage message)
-        {
-              return await _http.PostAsJsonAsync("api/telegram/send", message);
-        }
 
-        public async Task Post_AssignTelegramEmpAsync(long chatId, string empId, bool assign)
-        {
-            var url = $"api/telegram/telegram_emp_assign?chatid={chatId}&empid={empId}&assign={assign}";
-            var response = await _http.PostAsJsonAsync<object>(url, new { });
-            response.EnsureSuccessStatusCode();
-        }
+
+
+
+
+
+
 
     }
 }

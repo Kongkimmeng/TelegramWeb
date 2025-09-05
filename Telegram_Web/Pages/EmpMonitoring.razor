@@ -1,0 +1,231 @@
+﻿@page "/emp_monitoring"
+
+@inject IConfiguration Configuration
+
+<div style="padding:5px 20px 20px 20px;">
+    <div class="d-flex align-items-center justify-content-between" style="margin-top:-5px;border-bottom:1px solid #ccc;">
+        <h5 style="margin-bottom: 5px;">Employee Monitoring</h5>
+    </div>
+    <div class="d-flex align-items-center gap-3 mb-2 mt-2">
+        <!-- Team Dropdown -->
+        <div>
+            <label class="form-label fw-bold mb-0">Team :</label>
+        </div>
+        <div>
+            <select @bind="selectedTeamId" class="form-select form-select-sm">
+                @foreach (var team in TeamList)
+                {
+                    <option value="@team.TeamID">@team.TeamName</option>
+                }
+            </select>
+        </div>
+
+        <!-- Status Dropdown -->
+        <div>
+            <label class="form-label fw-bold mb-0">Status :</label>
+        </div>
+        <div>
+            <select @bind="selectedStatus" class="form-select form-select-sm">
+                <option value="">-- All --</option>
+                <option value="1">Assigned</option>
+                <option value="0">UnAssign</option>
+            </select>
+        </div>
+        <div><strong>From:</strong></div>
+        <div class="small-dateinput">
+            <DateInput TValue="DateOnly" @bind-Value="@date1" Placeholder="Enter Date" />
+        </div>
+        <div><strong>To:</strong></div>
+        <div class="small-dateinput">
+            <DateInput TValue="DateOnly" @bind-Value="@date2" Placeholder="Enter Date" />
+        </div>
+        <!-- Search Button -->
+        <div>
+            <button class="btn btn-primary btn-sm" @onclick="OnSearch">Search</button>
+        </div>
+
+
+        <div class="fw-bold fs-4 ms-auto">
+            @TotalEmp Active / @TotalAllEmp Total
+        </div>
+
+    </div>
+
+    <div class="d-flex flex-wrap gap-3" style="padding-top:20px">
+
+        @if (_isLoading)
+        {
+            <div class="text-center p-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading employees...</p>
+            </div>
+        }
+        else if (empCards == null || !empCards.Any())
+        {
+            <p>No employees found.</p>
+        }
+        else
+        {
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var emp in empCards)
+                {
+                    <div class="position-relative text-center">
+                        <!-- Circle -->
+                        <div class="emp-circle @(emp.Assign > 0 ? "active" : "inactive") d-flex align-items-center justify-content-center">
+                            @if (!string.IsNullOrEmpty(emp.ImageDataUrl))
+                            {
+                                <img src="@emp.ImageDataUrl" style="width:90px;height:90px;object-fit:cover;border-radius:50%;" />
+                            }
+                            else
+                            {
+                                <span style="font-size:11px">@emp.Name</span>
+                            }
+                        </div>
+
+                        <!-- Badge -->
+                        @if (emp.Assign > 0)
+                        {
+                            <Badge Color="BadgeColor.Danger"
+                                   Position="BlazorBootstrap.Position.Absolute"
+                                   Placement="BadgePlacement.TopRight"
+                                   IndicatorType="BadgeIndicatorType.RoundedPill"
+                                   VisuallyHiddenText="active assignments"
+                                    style="margin-top:15px"
+                            >
+                                @((emp.Assign > 99) ? "99+" : emp.Assign.ToString())
+                            </Badge>
+                        }
+                        <span style="font-size:10px; display:inline-block; max-width:100px; word-wrap:break-word; overflow-wrap:break-word;">
+                            @(emp.Name)
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .emp-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background-color: lightgray; /* default inactive */
+        font-size: 24px;
+        color: #fff;
+    }
+
+        .emp-circle.active {
+            background-color: #28a745; /* green when active */
+        }
+
+
+    .small-dateinput input {
+        height: 30px;
+        font-size: 13px;
+        padding: 2px 6px;
+    }
+</style>
+
+@code {
+
+    private List<EmpCard> empCards = new();
+    private List<TeamModel> TeamList = new();
+
+    private DateOnly date1 = DateOnly.FromDateTime(DateTime.Now.AddDays(-10));
+    private DateOnly date2 = DateOnly.FromDateTime(DateTime.Now);
+
+
+
+    private string selectedTeamId { get; set; } = "";
+    private string selectedStatus { get; set; } = "";
+
+    private string _connectionString { get; set; } = "";
+
+    private int TotalEmp = 0;
+    private int TotalAllEmp = 0;
+    private int TotalTeam = 0;
+
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connectionString = Configuration.GetConnectionString("AMIS_Data");
+
+        await LoadTeams();
+
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _isLoading = true;
+            await LoadData();
+            await LoadEmp_TeamCounts();
+            _isLoading = false;
+            StateHasChanged();   // refresh UI after data load
+        }
+    }
+
+    private async Task LoadTeams()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        TeamList = (await connection.QueryAsync<TeamModel>("sp_TelegramWeb_TeamList", commandType: CommandType.StoredProcedure))
+                      .ToList();
+    }
+
+    private async Task LoadData()
+    {
+        // Call your EmpList proc with filters
+        using var connection = new SqlConnection(_connectionString);
+        var result = await connection.QueryAsync<EmpCard>(
+            "sp_TelegramWeb_EmpList_Assign_Get",
+            new { TeamId = selectedTeamId, Status = selectedStatus }, // pass params
+            commandType: CommandType.StoredProcedure);
+
+
+        empCards = result.ToList();
+    
+    }
+
+    private async Task LoadEmp_TeamCounts()
+    {
+        // Convert DateOnly to DateTime
+        DateTime startDate = date1.ToDateTime(new TimeOnly(0, 0, 0));
+        DateTime toDate = date2.ToDateTime(new TimeOnly(23, 59, 59));
+
+        using var connection = new SqlConnection(_connectionString);
+
+        var result = await connection.QueryAsync(
+            "[dbo].[sp_TelegramWeb_Emp_Team_Count]",
+            new { StartDate = startDate, ToDate = toDate },
+            commandType: CommandType.StoredProcedure
+        );
+
+        foreach (var row in result)
+        {
+            string status = row.Status;
+            int count = row.Count;
+
+            switch (status)
+            {
+                case "EMP":
+                    TotalEmp = count;
+                    break;
+                case "ALL_EMP":
+                    TotalAllEmp = count;
+                    break;
+                case "TEAM":
+                    TotalTeam = count;
+                    break;
+            }
+        }
+    }
+    private async Task OnSearch()
+    {
+        await LoadData();
+    }
+}

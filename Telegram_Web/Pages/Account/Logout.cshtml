@@ -1,0 +1,8 @@
+﻿@page
+@model Telegram_Web.Pages.Account.LogoutModel
+@{
+}
+<form method="post">
+    @Html.AntiForgeryToken()
+    <button type="submit">Log out</button>
+</form>

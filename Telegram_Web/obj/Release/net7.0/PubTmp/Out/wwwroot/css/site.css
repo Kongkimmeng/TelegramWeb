@@ -66,3 +66,60 @@ a, .btn-link {
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+
+
+/* for New NavManuVertical */
+/* Only affect the layout's sidebar */
+.bb-page .bb-sidebar .bb-sidebar-header {
+    background-color: white !important;
+    color: black !important;
+}
+
+.vertical-nav {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 50px; /* slightly smaller */
+    background-color: #f8f9fa;
+    border-right: 1px solid #ddd;
+    padding: 8px 0;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 900;
+}
+
+.nav-btn {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s, transform 0.2s;
+}
+
+    .nav-btn:hover {
+        background-color: #e9ecef;
+        transform: scale(1.05);
+    }
+
+    .nav-btn.active {
+        background-color: #007bff;
+        color: white;
+    }
+
+.nav-spacer {
+    flex-grow: 1;
+}
+
+.logo img {
+    width: 18px;
+    height: 18px;
+}

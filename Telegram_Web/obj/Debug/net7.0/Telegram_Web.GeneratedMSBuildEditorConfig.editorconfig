@@ -24,24 +24,56 @@ build_property.EnableCodeStyleSeverity =
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Chat.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ2hhdC5yYXpvcg==
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Dashboard.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRGFzaGJvYXJkLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Counter.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQ291bnRlci5yYXpvcg==
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/EmpMonitoring.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRW1wTW9uaXRvcmluZy5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
 
-[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/FetchData.razor]
-build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRmV0Y2hEYXRhLnJhem9y
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Inbox.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5ib3gucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Index.razor]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcSW5kZXgucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Report.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcUmVwb3J0LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/AccessDenied.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXEFjY2Vzc0RlbmllZC5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/Components/Assign.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbXBvbmVudHNcQXNzaWduLnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/Components/EmployeeManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbXBvbmVudHNcRW1wbG95ZWVNYW5hZ2VtZW50LnJhem9y
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/Components/MoreInfo.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbXBvbmVudHNcTW9yZUluZm8ucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/Components/Popup.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbXBvbmVudHNcUG9wdXAucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/Components/TeamManagement.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXENvbXBvbmVudHNcVGVhbU1hbmFnZW1lbnQucmF6b3I=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/RedirectToLogin.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFJlZGlyZWN0VG9Mb2dpbi5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/SetStorage.razor]
+build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFNldFN0b3JhZ2UucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = 
 
 [D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/SurveyPrompt.razor]
@@ -59,6 +91,18 @@ build_metadata.AdditionalFiles.CssScope = b-u544s3wov2
 [D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Shared/NavMenu.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXE5hdk1lbnUucmF6b3I=
 build_metadata.AdditionalFiles.CssScope = b-fhbc21ajv3
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Account/Denied.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxEZW5pZWQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Account/Login.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxMb2dpbi5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Account/Logout.cshtml]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcQWNjb3VudFxMb2dvdXQuY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
 
 [D:/TELEGRAM PROJECT/Telegram_Web/Telegram_Web/Pages/Error.cshtml]
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcRXJyb3IuY3NodG1s

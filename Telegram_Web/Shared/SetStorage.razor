@@ -1,0 +1,40 @@
+﻿@page "/SetStorage"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Text.Json
+@inject UserStateService UserState
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+@code {
+    [Parameter] public string? ReturnUrl { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+
+        if (Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query)
+            .TryGetValue("returnUrl", out var param))
+        {
+            ReturnUrl = param;
+        }
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User; 
+        var userdata = user.FindFirst(System.Security.Claims.ClaimTypes.UserData);
+
+        var jsontext = userdata?.Value ?? "";
+        var doc = JsonDocument.Parse(jsontext);
+                    var root = doc.RootElement;
+
+                    string fullname = root[0].GetProperty("FullName").GetString() ?? ""; ;
+                    string empid = root[0].GetProperty("EmployeeID").GetString() ?? ""; ;
+                    
+
+        await UserState.SetUserAsync(fullname, empid);
+        var url = ReturnUrl ?? "/";
+        Navigation.NavigateTo(url, forceLoad: true);
+
+    }
+
+}

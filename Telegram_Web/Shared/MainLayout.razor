@@ -2,82 +2,76 @@
 @inject UserStateService UserState
 @inject NavigationManager Navigation
 @inject ProtectedLocalStorage localStorage
+@inject AuthenticationStateProvider AuthStateProvider
+
+@if (!isLoaded)
+{
+    <p>Loading...</p>
+}
+else if (isAuthenticated)
+{
+    <div class="vertical-nav">
+        <button title="Menu" class="nav-btn">
+            <Icon Name="IconName.Telegram"></Icon>
+        </button>
+
+        <NavLink href="/Dashboard" class="nav-btn" title="Dashboard">
+            <i class="bi bi-speedometer2"></i>
+        </NavLink>
+
+        <NavLink href="/Inbox" class="nav-btn" title="Inbox">
+            <i class="bi bi-inbox"></i>
+        </NavLink>
+
+      @*   <NavLink href="/reports" class="nav-btn" title="Reports">
+            <i class="bi bi-bar-chart"></i>
+        </NavLink> *@
+        <NavLink href="/emp_monitoring" class="nav-btn" title="Emp Monitor">
+            <i class="bi bi-people"></i>
+        </NavLink>
 
 
-<div class="bb-page" style="font-size: 13px">
-
-    <Sidebar @ref="sidebar"
-             IconName="IconName.Telegram"
-             Title="Telegram Application"
-             DataProvider="SidebarDataProvider"/>
-
-    <main>
-        <div class="top-row px-4 justify-content-between" style="z-index:1000;">
-            <Icon Name="IconName.List" role="button" @onclick="ToggleSidebar" />
-            <label>@PageName</label>
-            
-            
-            <label>EmpID: </label>
-        </div>
 
 
 
-        <article>
-            <div class="py-2">@Body</div>
-        </article>
-    </main>
 
-</div>
+        <div class="nav-spacer"></div>
+        <NavLink href="/" class="nav-btn" title="Profile" Match="NavLinkMatch.All">
+            <i class="bi bi-person-circle"></i>
+        </NavLink>
+       
+        <button title="Notifications" class="nav-btn">
+            <i class="bi bi-bell"></i>
+        </button>
+        <button title="Help" class="nav-btn">
+            <i class="bi bi-question-circle"></i>
+        </button>
+       
+    </div>
 
+    <div class="bb-page" style="font-size: 13px; margin-left:50px;">
+        <main>
+            <div>@Body</div>
+        </main>
+    </div>
+}
 
 
 @code {
-    Sidebar sidebar;
-    IEnumerable<NavItem> navItems;
-    string PageName = "";
+    private bool isLoaded = false;
+    private bool isAuthenticated = false;
 
-    private async Task<SidebarDataProviderResult> SidebarDataProvider(SidebarDataProviderRequest request)
+    protected override async Task OnInitializedAsync()
     {
-        if (navItems is null)
+        // Get the current authentication state
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
+        isLoaded = true;
+
+        // Redirect only if unauthenticated
+        if (!isAuthenticated)
         {
-            navItems = GetNavItems();            
-        }
-        return await Task.FromResult(request.ApplyTo(navItems));
-    }
-
-    private IEnumerable<NavItem> GetNavItems()
-    {
-        navItems = new List<NavItem>
-        {
-            new NavItem { Id = "1", Href = "/", IconName = IconName.HouseDoorFill, Text = "Home", Match=NavLinkMatch.All},           
-            new NavItem { Id = "2", Href = "/Chat", IconName = IconName.Person, Text = " All Chat"},
-        };
-
-        return navItems;
-    }
-    private void ToggleSidebar() => sidebar.ToggleSidebar();
-
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // Collapse the sidebar on first render
-            sidebar?.ToggleSidebar();
-            StateHasChanged();
-        }
-    }
-    protected override void OnParametersSet()
-    {
-        var currentPath = Navigation.ToBaseRelativePath(Navigation.Uri);
-
-        var currentItem = navItems?.FirstOrDefault(i =>
-            i.Href.TrimStart('/') == currentPath.TrimStart('/'));
-
-        if (currentItem != null)
-        {
-            PageName = currentItem.Text;
+            Navigation.NavigateTo("/Account/Login", forceLoad: true);
         }
     }
 }
-

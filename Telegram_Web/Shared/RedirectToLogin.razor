@@ -1,0 +1,13 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inject NavigationManager Navigation
+@code {
+    [Parameter] public string? ReturnUrl { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        var url = ReturnUrl ?? Navigation.Uri;
+        Navigation.NavigateTo($"/Account/Login?returnUrl={Uri.EscapeDataString(url)}", forceLoad: true);
+     
+    }
+      
+}

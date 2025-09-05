@@ -1,0 +1,225 @@
+﻿@inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
+
+
+<Modal @ref="modal" Title="@Title" IsScrollable="true" Size="ModalSize.Regular" Class="assign-modal" UseStaticBackdrop="true" CloseOnEscape="false" ShowCloseButton="false">
+    <BodyTemplate>
+
+        <h5>Team Management</h5>
+
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-outline-primary btn-sm p-1 d-flex align-items-center justify-content-center"
+                    style="font-size: 0.75rem; line-height:1; border-radius:3px;"
+                    @onclick="AddTeamInternal" title="Add Team">
+                New Team ➕
+            </button>
+        </div>
+        @if (IsEditing)
+        {
+            <div class="row mt-2">
+                <div class="col-12 mb-1">
+                    <label style="font-size:0.85rem;">Team Name</label>
+                    <input class="form-control form-control-sm" @bind="CurrentTeam.TeamName" />
+                </div>
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-primary btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="SaveInternal">Save</button>
+                    <button class="btn btn-secondary btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="CancelEditInternal">Cancel</button>
+                </div>
+            </div>
+        }
+
+        <table class="table table-bordered table-sm">
+            <thead>
+                <tr>
+                    <th>Team Name</th>
+                    <th>Create Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var team in Teams)
+                {
+                    <tr>
+                        <td>@team.TeamName</td>
+                        <td>@team.CreateDate</td>
+                        <td>
+                            <button class="btn btn-success btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="() => OnEditPreview(team)">Edit</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        
+
+   
+
+
+
+
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-secondary btn-sm p-1" style="font-size:0.75rem;" @onclick="OnCloseClick">Close</button>
+    </FooterTemplate>
+</Modal>
+
+
+<style>
+    .table td, .table th {
+        vertical-align: middle;
+        text-align: center;
+    }
+    .assign-modal .row {
+        margin-bottom: 5px;
+    }
+
+    .assign-modal label {
+        font-size: 0.85rem;
+    }
+
+    .assign-modal .table td,
+    .assign-modal .table th {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .assign-modal .form-control-sm {
+        font-size: 0.85rem;
+    }
+
+</style>
+
+
+@code {
+    [Parameter] public string CurrentUser { get; set; } = "DefaultUser";
+    [Parameter] public EventCallback OnClose { get; set; }
+
+
+    private bool IsAddingMember = false;
+
+
+
+    private string _connectionString;
+    private List<TeamModel> Teams = new();
+
+    
+
+
+    private TeamModel CurrentTeam = new();
+
+
+
+
+    private string Title;
+    private bool IsEditing = false;
+
+    private Modal modal = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connectionString = Configuration.GetConnectionString("AMIS_Data");
+
+        await LoadTeams();
+    }
+
+    private async Task LoadTeams()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        Teams = (await connection.QueryAsync<TeamModel>(
+            "sp_TelegramWeb_Team_GetAll", commandType: System.Data.CommandType.StoredProcedure)).ToList();
+        StateHasChanged();
+    }
+   
+    // Public method the parent calls
+    public async Task ShowModal()
+    {
+        await modal.ShowAsync();
+    }
+
+
+    // Internal Add/Edit/Delete logic
+    private async Task AddTeamInternal()
+    {
+        CurrentTeam = new TeamModel { CreateDate = DateTime.Now, CreateBy = CurrentUser };
+        IsEditing = true;
+        StateHasChanged();
+    }
+
+    private async Task OnEditPreview(TeamModel team)
+    {
+        CurrentTeam = new TeamModel
+        {
+            TeamID = team.TeamID,
+            TeamName = team.TeamName,
+            CreateDate = team.CreateDate,
+            CreateBy = team.CreateBy
+        };       
+        IsEditing = true;
+        IsAddingMember = false;
+
+        StateHasChanged();
+    }
+
+    private async Task SaveInternal()
+    {
+        using var connection = new SqlConnection(_connectionString);
+
+        if (CurrentTeam.TeamID == 0)
+        {
+            await connection.ExecuteAsync(
+                "sp_TelegramWeb_Team_Add",
+                new { CurrentTeam.TeamName, CurrentTeam.CreateDate, CurrentTeam.CreateBy },
+                commandType: System.Data.CommandType.StoredProcedure);
+        }
+        else
+        {
+            await connection.ExecuteAsync(
+                "sp_TelegramWeb_Team_Update",
+                new { CurrentTeam.TeamID, CurrentTeam.TeamName },
+                commandType: System.Data.CommandType.StoredProcedure);
+        }
+
+        await LoadTeams();
+        IsEditing = false;
+    }
+
+    private async Task DeleteTeamInternal(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", $"Delete Team {id}?"))
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "sp_TelegramWeb_Team_Delete",
+                new { TeamID = id },
+                commandType: System.Data.CommandType.StoredProcedure);
+
+            await LoadTeams();
+        }
+    }
+
+
+    private async Task OnCloseClick()
+    {
+        IsEditing = false;
+        IsAddingMember = false;
+        CurrentTeam = new TeamModel();
+        await modal.HideAsync();
+
+        // Notify parent
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync(null);
+        }
+    }
+
+
+    private void CancelEditInternal()
+    {
+        IsEditing = false;           // stop showing the Add/Edit form
+        CurrentTeam = new TeamModel();     // reset input fields
+                                      // Do NOT hide the modal
+    }
+    
+
+    
+}

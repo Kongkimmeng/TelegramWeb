@@ -1,0 +1,35 @@
+﻿@using BlazorBootstrap
+@inject IConfiguration Configuration
+@inject IJSRuntime JS
+
+<Modal @ref="modal" Title="Popup" IsScrollable="true" Size="ModalSize.Large">
+    <div class="p-3 text-center">
+        <!-- Minimal placeholder content -->
+        <h5>Assign</h5>
+        @ChatID
+    </div>
+</Modal>
+
+@code {
+    private Modal modal = default!;
+
+    [Parameter] public long ChatID { get; set; }
+
+    // Show modal safely
+    public async Task ShowAsync()
+    {
+        if (modal != null)
+        {
+            await modal.ShowAsync();
+        }
+    }
+
+    // Hide modal
+    public async Task HideAsync()
+    {
+        if (modal != null)
+        {
+            await modal.HideAsync();
+        }
+    }
+}

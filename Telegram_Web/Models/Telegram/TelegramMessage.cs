@@ -25,6 +25,12 @@
         public long? FromUserID { get; set; }    // bigint (nullable)
 
         public string? EmpId { get; set; }       // varchar(10)
+
+        public string? Type { get; set; } 
+
+        public string? TypeCustom { get; set; }
+
+        public int ReplyMessageId { get; set; }
     }
 
 

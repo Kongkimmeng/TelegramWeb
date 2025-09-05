@@ -1,0 +1,166 @@
+﻿@inject IConfiguration Configuration
+@inject IJSRuntime JSRuntime
+
+<Modal @ref="modal" IsScrollable="true" Size="ModalSize.Regular" Class="assign-modal" UseStaticBackdrop="true" CloseOnEscape="false" ShowCloseButton="false">
+    <BodyTemplate>
+
+        <h5>@Team.TeamName</h5>
+        <div class="d-flex justify-content-end mb-2">
+            <button class="btn btn-outline-primary btn-sm p-1 d-flex align-items-center justify-content-center"
+                    style="font-size: 0.75rem; line-height:1; border-radius:3px;"
+                    @onclick="OnAddMember" title="Add Team">
+                New Member ➕
+            </button>
+        </div>
+
+
+        @if (IsAddingMember)
+        {
+            <div class="row mt-2">
+                <div class="col-12 mb-1">
+                    <label style="font-size:0.85rem;">Emp Name</label>
+                    <select class="form-select form-select-sm d-inline" @bind="SelectedEmpID">
+                        @foreach (var emp in AllEmpList)
+                        {
+                            <option value="@emp.EmpID">@emp.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="d-flex justify-content-end mb-2">
+                    <button class="btn btn-primary btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="AddMember">Add</button>
+                    <button class="btn btn-secondary btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="CancelAddMember">Cancel</button>
+                </div>
+
+            </div>
+        }
+
+        <table class="table table-sm table-bordered">
+            <thead>
+                <tr>
+                    <th>Emp ID</th>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var emp in EmpList)
+                {
+                    <tr>
+                        <td>@emp.EmpID</td>
+                        <td>@emp.Name</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm me-1 p-1" style="font-size:0.75rem;" @onclick="() => RemoveMember(emp)">Remove</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+
+    </BodyTemplate>
+    <FooterTemplate>
+        <button class="btn btn-secondary btn-sm p-1" style="font-size:0.75rem;" @onclick="OnCloseClick">Close</button>
+    </FooterTemplate>
+</Modal>
+
+
+@code {
+    [Parameter] public string CurrentUser { get; set; } = "DefaultUser";
+    [Parameter] public TeamModel Team { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string _connectionString;
+    private List<TelegramEmpAssign> EmpList = new();
+    private List<TelegramEmpAssign> AllEmpList = new();
+
+    private bool IsAddingMember = false;
+    private string SelectedEmpID = "";
+    private Modal modal = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _connectionString = Configuration.GetConnectionString("AMIS_Data");
+
+        await LoadEmps();
+    }
+
+    // Public method the parent calls
+    public async Task ShowModal(TeamModel team)
+    {
+        Team = team;              // assign team
+        await ShowMembers();
+        await modal.ShowAsync();
+    }
+
+
+    private async Task ShowMembers()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        EmpList = (await connection.QueryAsync<TelegramEmpAssign>(
+            "sp_TelegramWeb_Team_GetMembers",
+            new { TeamID = Team.TeamID },
+            commandType: CommandType.StoredProcedure)).ToList();
+
+        StateHasChanged();
+    }
+
+
+
+    private async Task LoadEmps()
+    {
+        using var connection = new SqlConnection(_connectionString);
+        AllEmpList = (await connection.QueryAsync<TelegramEmpAssign>("sp_TelegramWeb_EmpList", commandType: CommandType.StoredProcedure))
+                    .ToList();
+
+        StateHasChanged();
+    }
+
+    private async Task AddMember()
+    {
+        if (string.IsNullOrEmpty(SelectedEmpID) || Team == null)
+            return;
+
+        var emp = AllEmpList.FirstOrDefault(e => e.EmpID == SelectedEmpID);
+        if (emp == null) return;
+
+        using var connection = new SqlConnection(_connectionString);
+        await connection.ExecuteAsync(
+            "sp_TelegramWeb_Team_AddMember",
+            new { TeamID = Team.TeamID, EmpID = emp.EmpID, EmpName = emp.Name },
+            commandType: CommandType.StoredProcedure);
+
+        await ShowMembers();
+    }
+
+    private async Task RemoveMember(TelegramEmpAssign emp)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.ExecuteAsync(
+            "sp_TelegramWeb_Team_RemoveMember",
+            new { TeamID = Team.TeamID, EmpID = emp.EmpID },
+            commandType: CommandType.StoredProcedure);
+
+        await ShowMembers();
+    }
+
+    private void CancelAddMember()
+    {
+        IsAddingMember = false;
+    }
+    private void OnAddMember()
+    {
+        IsAddingMember = true;
+    }
+
+    private async Task OnCloseClick()
+    {
+        IsAddingMember = false;
+        await modal.HideAsync();
+        // Notify parent
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync(null);
+        }
+    }
+
+}

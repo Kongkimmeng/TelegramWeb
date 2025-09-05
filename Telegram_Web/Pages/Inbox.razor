@@ -1,0 +1,1591 @@
+﻿@page "/Inbox"
+
+@using BlazorBootstrap
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+@inject ITelegramService TelegramService
+@inject ITranslationService TranslationService
+
+@inject IAiService AiService
+@inject AuthenticationStateProvider AuthStateProvider
+
+
+<div class="page-container" >
+    <!-- Sidebar -->
+   <div class="sidebar @(IsBtnListCollapsed ? "collapsed" : "")" style="width:15%">
+        <div class="d-flex align-items-center justify-content-between" style="margin-top:-5px">
+            <h5 style="padding-left:15px; margin-bottom: 5px;">Inbox</h5>
+            @if (!IsBtnListCollapsed)
+            {
+                <button class="btn btn-outline-secondary btn-sm" style="border: none;" @onclick="ToggleButtonList">
+                    <Icon Name="IconName.ArrowBarLeft"/>
+                </button>
+            }
+        </div>
+
+        <!-- Sidebar buttons -->
+        <button class="sidebar-btn w-100 @(selectedAllMine == "All" ? "btn-active" : "")"
+                @onclick="@(() => SelectButton("All"))">
+            <Icon Name="IconName.Inbox" style="padding-right: 7px" /> All (@TotalGroupChats)
+        </button>
+
+        <button class="sidebar-btn w-100 @(selectedAllMine == "Mine" ? "btn-active" : "")"
+                @onclick="@(() => SelectButton("Mine"))">
+            <Icon Name="IconName.PersonWorkspace" style="padding-right: 7px" /> Mine (@TotalMine)
+        </button>
+
+        <button class="sidebar-btn w-100 @(selectedAllMine == "Unassigned" ? "btn-active" : "")"
+                @onclick="@(() => SelectButton("Unassigned"))">
+            <Icon Name="IconName.PersonFillDash" style="padding-right: 7px" /> Unassigned  (@TotalUnassign)
+        </button>
+
+
+
+        <span style="padding-left:10px;">
+            @(hubConnection?.State == HubConnectionState.Connected ? "🟢" : "🔴")
+        </span>
+
+        <hr style="margin-bottom: 0px;">
+        <div class="d-flex align-items-center mb-2">
+            <h5 class="mb-0 me-2">Teams <Icon Name="IconName.People"/></h5>
+            <button class="btn btn-outline-primary btn-sm p-0" style="width: 22px; height: 22px; font-size: 0.8rem; line-height: 1;border:none"
+                    @onclick="ShowTeamModal" title="Add Team">
+                <Icon Name="IconName.PlusCircle" />
+            </button>
+        </div>
+        
+        <TeamManagement @ref="teamModal" CurrentUser="@userid" OnClose="OnLoadCaseOpen" />
+        <EmployeeManagement @ref="EmpModal" CurrentUser="@userid" OnClose="OnLoadCaseOpen" />
+
+        <ul class="p-0">
+            @foreach (var team in Teams)
+            {
+                var totalEmployees = allEmployees.Count(e => e.TeamName == team.TeamName);
+                var openEmployees = openCaseslist.Count(e => e.TeamName == team.TeamName && e.OpenCaseCount > 0);
+
+                <li style="list-style:none; padding-left:5px;">
+                    <details>
+                        <summary>
+                            <strong>@team.TeamName (@openEmployees/@totalEmployees) <Icon Name="IconName.PersonPlus" @onclick="() => ShowEmpModal(team)" />  </strong>
+                        </summary>
+                         
+                        <ul style="padding-left:15px;">
+                            @foreach (var emp in openCaseslist.Where(e => e.TeamName == team.TeamName && e.OpenCaseCount > 0))
+                            {
+                                <li title="@emp.ChatTitles" style="font-size:12px; list-style:disc;">
+                                    @emp.Name <span class="badge bg-success">@emp.OpenCaseCount</span>
+                                </li>
+                            }
+                        </ul>
+                    </details>
+                </li>
+            }
+        </ul>
+    </div>
+
+
+    <!-- Main content -->
+    <div class="content-area" style="height: calc(100vh - 30px); width:85%">
+       
+        
+        <div class="row" style="margin-left:0px">
+            <div class="col-md-3" style="padding:0px">
+                <div class="d-flex" style="border:solid 1px #ccc;border-top:none; margin-left:0px; height:30px">
+                    <div class="d-flex align-items-center">
+
+                        @if (IsBtnListCollapsed)
+                        {
+                            <button class="btn btn-outline-secondary btn-sm margin-bottom: 5px;" style="border: none;" @onclick="ToggleButtonList">
+                                <Icon Name="IconName.ArrowBarRight" />
+                            </button>
+                        }
+                        <label style="padding-left:15px; font-weight:bold;">
+                            Chat / @selectedAllMine
+                        </label>
+                    </div>
+                </div>
+
+
+
+                <div class="telegram-messages d-flex flex-column" style="height: calc(100vh - 30px);">                  
+                    <div class="d-flex align-items-center justify-content-start p-1 gap-4 " style="border: 1px solid #ccc;border-top:none">
+                        <div class="dropdown">
+                            <button class="btn btn-sm dropdown-toggle border-0" type="button" data-bs-toggle="dropdown">
+                                @selectedShow | @selectedSort
+                            </button>
+                            <ul class="dropdown-menu p-2" style="min-width: 200px;">
+
+                                <!-- Show section -->
+                                <li class="fw-bold text-muted small mb-1">Show</li>
+                                <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="showFilter" value="All"
+                                               checked="@("All" == selectedShow)"
+                                               @onchange="@(() => OnShowChange("All"))" />
+                                        All
+                                    </label>
+                                </li>
+                                  <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="showFilter" value="New"
+                                               checked="@("New" == selectedShow)"
+                                               @onchange="@(() => OnShowChange("New"))" />
+                                        New
+                                    </label>
+                                </li>
+                                <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="showFilter" value="Open"
+                                               checked="@("Open" == selectedShow)"
+                                               @onchange="@(() => OnShowChange("Open"))" />
+                                        Open
+                                    </label>
+                                </li>
+                                 <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="showFilter" value="Pending"
+                                               checked="@("Pending" == selectedShow)"
+                                               @onchange="@(() => OnShowChange("Pending"))" />
+                                        Pending
+                                    </label>
+                                </li>                               
+                                <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="showFilter" value="Closed"
+                                               checked="@("Close" == selectedShow)"
+                                               @onchange="@(() => OnShowChange("Close"))" />
+                                        Closed
+                                    </label>
+                                </li>
+
+
+                                <li><hr class="dropdown-divider" /></li>
+
+                                <!-- Sort section -->
+                                <li class="fw-bold text-muted small mb-1">Sort</li>
+                                <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="sortOrder" value="Newest"
+                                               checked="@("Newest" == selectedSort)"
+                                               @onchange="@(() => OnSortChange("Newest"))" />
+                                        Newest
+                                    </label>
+                                </li>
+                                <li>
+                                    <label class="dropdown-item">
+                                        <input type="radio" name="sortOrder" value="Oldest"
+                                               checked="@("Oldest" == selectedSort)"
+                                               @onchange="@(() => OnSortChange("Oldest"))" />
+                                        Oldest
+                                    </label>
+                                </li>
+
+                            </ul>
+                        </div>
+
+                        <div class="form-check form-switch m-0" style="display: flex; align-items: center;">
+                            <input class="form-check-input" type="checkbox" id="unreplySwitch" @bind="showUnreply">
+                            <label class="form-check-label ms-2" for="unreplySwitch">
+                                Unreply
+                            </label>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm border-0 btn-outline-secondary" style="box-shadow: none !important;" @onclick="ToggleSearch">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    @if (showSearch)
+                    {
+                        <div class="d-flex align-items-center p-2 border-bottom gap-2">
+                            <input id="txtSearchInput" class="form-control form-control-sm" placeholder="Search..."
+                                   @oninput="OnSearchInput" value="@searchText" />
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="CloseSearch">X</button>
+                        </div>
+                    }
+                    <div class="list-group list-group-flush chat-list flex-grow-1 overflow-auto" style="border: 1px solid #ccc; border-bottom:none;">
+                        @if (chatList.Any())
+                        {
+                            @foreach (var g in chatList)
+                            {
+                                <button class="chat-btn @(GroupChatInfo.ChatID == g.ChatID ? "chat-btn-active" : "")"
+                                        @onclick="() => OnChatClick(g.ChatID, g.Title)">
+                                    <div class="d-flex align-items-center" style="gap:10px;">
+
+                                        <!-- Profile image (fixed size, never shrink) -->
+                                        @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "groupprofile", $"groupprofile_{g.ChatID}.jpg")))
+                                        {
+                                            <img src="@($"/downloads/groupprofile/groupprofile_{g.ChatID}.jpg")"
+                                                 alt="Profile"
+                                                 style="width:40px; height:40px; border-radius:50%; object-fit:cover; flex-shrink:0;" />
+                                        }
+                                        else
+                                        {
+                                            <div style="width:40px; height:40px; border-radius:50%;
+                                                        display:flex; align-items:center; justify-content:center;
+                                                        background-color:@GetColorFromUserId(g.ChatID);
+                                                        font-weight:bold; color:white; flex-shrink:0;">
+                                                @GetInitials(g.Title, "")
+                                            </div>
+                                        }
+
+                                        <!-- Chat info (can shrink/truncate) -->
+                                        <div class="flex-grow-1 me-2" style="min-width:0;">
+                                            <div class="fw-bold text-truncate">@g.Title</div>
+                                            <div class="text-muted text-truncate" style="font-size:0.9rem;">
+                                                @g.TelegramFirstname: @g.LastMessageText
+                                            </div>
+                                        </div>
+
+                                        <!-- Time -->
+                                        <div class="text-end text-muted" style="font-size:0.8rem; white-space:nowrap; flex-shrink:0;">
+                                            @g.LastMessageTime?.ToString("HH:mm")
+                                        </div>
+                                        @if (loadingChatId == g.ChatID)
+                                        {
+                                            <div class="ms-2 spinner-border spinner-border-sm text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </button>
+
+                            }
+                        }
+                        else
+                        {
+                            <div class="p-3 text-muted">No groups found.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div  class="@MiddleColumnClass" style="border-right:solid 1px #ccc; padding-left:0px">
+                <div class="d-flex justify-content-between align-items-center"
+                     style="border-bottom:solid 1px #ccc; margin-left:0px; height:30px; padding:0 10px;">
+
+                    <!-- Left side -->
+                    <div class="d-flex align-items-center">
+                        @if (IsBtnListCollapsed)
+                        {
+                            <button class="btn btn-outline-secondary btn-sm" style="border: none;" @onclick="ToggleButtonList">
+                                <Icon Name="IconName.ArrowBarRight" />
+                            </button>
+                        }
+                        <label style="font-weight:bold;">@GroupChatInfo.Title </label>
+                       
+                    </div>
+
+                    <!-- Right side -->
+                    <div class="d-flex align-items-center gap-1">
+
+
+                 
+                        <Assign @ref="assignModal" ChatID="@GroupChatInfo.ChatID" Title="@GroupChatInfo.Title" OnClose="OnModalClosed"/>
+               
+
+
+                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center" 
+                                style="padding:2px 6px;" 
+                                @onclick="ShowAssignModal">
+                            <Icon Name="IconName.PeopleFill" class="me-1" />
+                            @(GroupChatInfo.IsAssign ? "Assigned" : "Unassigned")
+                        </button>
+
+
+
+                        <button class="btn btn-sm dropdown-toggle"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                style="border:2px solid @GetStatusBorderColor(GroupChatInfo.StatusName); padding:1px 6px;">
+                            @GroupChatInfo.StatusName
+                        </button>
+
+                        <ul class="dropdown-menu p-2" style="min-width: 150px;">
+                            @foreach (var status in StatusList)
+                            {
+                                <li>
+                                    <label class="dropdown-item d-flex align-items-center">
+                                        <input type="radio" name="statusFilter" value="@status"
+                                               checked="@(status == GroupChatInfo.StatusName)"
+                                               @onchange="@(() => OnStatusChange(status))" />
+                                        @status
+                                    </label>
+                                </li>
+                            }
+                        </ul>
+
+
+                        <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
+                                style="padding:2px 6px;"
+                                @onclick="ToggleRightSidebar">
+                            <Icon Name="IconName.JournalBookmark" class="me-1" /> More Info
+                        </button>
+                    </div>                    
+                </div>
+                
+               
+
+
+
+
+
+                <div class="row flex-grow-1" style="height: calc(100vh - 30px); overflow: hidden;">
+                    <div class="col-md-12 d-flex flex-column" style="height: 100%;">
+                        <!-- Scrollable Messages -->
+                        <div id="messagesContainer" class="flex-grow-1 overflow-auto" style="padding-right: 5px; padding:10px;">
+                            @if (messagesList?.Count > 0)
+                            {
+                                @foreach (var msg in messagesList)
+                                {                                   
+                                    if (msg.Type == "101")
+                                    {
+                                        <div id="msg_@msg.MessageId" class="d-flex justify-content-end message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                            
+
+                                            <Card class="message-bubble my-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+
+                                                    @if (msg.ReplyMessageId != 0)
+                                                    {
+                                                        <!-- Reply block like Telegram -->
+                                                        <div class="reply-block"
+                                                             style="border-left: 3px solid dodgerblue;
+                                                                    padding-left: 8px;
+                                                                    margin-bottom:5px;
+                                                                    font-size:0.85rem;
+                                                                    color:#555;
+                                                                    cursor:pointer;"
+                                                             @onclick="() => GoToChatMessage(msg.ReplyMessageId)">
+                                                            <div style="display:block; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                                @msg.Raw
+                                                            </div>
+                                                        </div>
+
+                                                    }
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+                                                    <div class="mt-1">@msg.Text</div> 
+                                                </CardBody>
+                                            </Card>
+
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.EmpId}.webp")))
+                                            {
+                                                <img src="@($"/downloads/profile/profile_{msg.EmpId}.webp")"
+                                                     alt="Profile"
+                                                     class="profile-circle" />
+                                            }
+                                            else
+                                            {
+                                                <div class="profile-circle" style="background-color:@GetColorFromUserId(msg.FromUserID);">
+                                                    @GetInitials(msg.FirstName, msg.LastName)
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else if (msg.Type == "102")
+                                    {
+                                        <div class="d-flex justify-content-end message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                            <Card class="message-bubble my-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(msg.TypeCustom))
+                                                    {
+                                                        <img src="@msg.TypeCustom" style="max-width:300px; border-radius:10px;" @onclick="() => OpenImage(msg.TypeCustom)" />
+                                                    }
+                                                    <div class="mt-1">@msg.Text</div>                                                   
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                    @if (msg.Type == "105")  //voice
+                                    {
+
+                                        <div class="d-flex message-bubble-container justify-content-end" style="margin-bottom:5px;align-items:flex-end;">
+                                            <Card class="message-bubble my-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                    
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+
+                                                    @if (!string.IsNullOrEmpty(msg.TypeCustom))
+                                                    {
+                                                        <audio controls style="max-width:300px;">
+                                                            <source src="@msg.TypeCustom" type="audio/mpeg" />
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    }
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                    else if (msg.Type == "1")
+                                    {
+                                        <div id="msg_@msg.MessageId" class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                            
+                                            @* Profile image or fallback *@
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
+                                            {
+                                                <img src="@($"/downloads/profile/profile_{msg.FromUserID}.webp")"
+                                                     alt="Profile"
+                                                     class="profile-circle" />
+                                            }
+                                            else
+                                            {
+                                                <div class="profile-circle" style="background-color:@GetColorFromUserId(msg.FromUserID);">
+                                                    @GetInitials(msg.FirstName, msg.LastName)
+                                                </div>
+                                            }
+                                            <Card class="message-bubble their-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                    @if (msg.ReplyMessageId != 0)
+                                                    {
+                                                        <!-- Reply block like Telegram -->
+                                                        <div class="reply-block"
+                                                             style="border-left: 3px solid dodgerblue;
+                                                                                                    padding-left: 8px;
+                                                                                                    margin-bottom:5px;
+                                                                                                    font-size:0.85rem;
+                                                                                                    color:#555;
+                                                                                                    cursor:pointer;"
+                                                             @onclick="() => GoToChatMessage(msg.ReplyMessageId)">
+                                                            
+                                                           @{
+                                                                var replyMessage = messagesList.FirstOrDefault(m => m.MessageId == msg.ReplyMessageId);
+                                                            }
+                                                            <div style="display:block; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                                @if (replyMessage != null)
+                                                                {
+                                                                    @($"{replyMessage.FirstName}: {replyMessage.Text}")
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span style="color:gray;">Message not found</span>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+
+                                                    <div class="mt-1">
+                                                        @if (messageTranslations.ContainsKey(msg.ID) && showTranslation.ContainsKey(msg.ID) && showTranslation[msg.ID])
+                                                        {
+                                                            <span>@messageTranslations[msg.ID]</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span>@msg.Text</span>
+                                                        }
+                                                    </div>
+
+                                                    <div class="mt-1">
+                                                        @if (messageTranslations.ContainsKey(msg.ID))
+                                                        {
+                                                            <a href="javascript:void(0);"
+                                                               style="font-size:0.8rem; color:blue; text-decoration:underline; cursor:pointer;"
+                                                               @onclick="() => ToggleTranslation(msg.ID)">
+                                                                @(showTranslation[msg.ID] ? "Show Original" : "Show Translation")
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                </CardBody>
+
+                                            </Card>
+
+                                            <div class="message-actions">
+                                                @* <button title="AI Help" @onclick="() => OnAiHelpAsync(msg.Text)"><i class="bi bi-robot"></i></button> *@
+
+                                                <div class="dropdown d-inline">
+                                                    <button class="btn btn-light btn-sm dropdown-toggle" type="button"
+                                                            data-bs-toggle="dropdown" aria-expanded="false">
+                                                        <i class="bi bi-translate"></i>
+                                                    </button>
+                                                    <div class="dropdown-menu p-2" style="width: 150px; max-height: 150px; overflow-y: auto;">
+                                                        <input type="text" class="form-control form-control-sm mb-2" placeholder="Search..." style="width: 100%;" />
+
+                                                        <button class="dropdown-item p-1 text-truncate"
+                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "en"))">
+                                                            English
+                                                        </button>
+                                                        <button class="dropdown-item p-1 text-truncate"
+                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "zh"))">
+                                                            Chinese
+                                                        </button>
+                                                        <button class="dropdown-item p-1 text-truncate"
+                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "km"))">
+                                                            Khmer
+                                                        </button>
+                                                    </div>
+
+                                                   
+                                                </div>                                 
+                                                <button title="Create Case" @onclick="() => OnCreateCase(msg)">
+                                                    <i class="bi bi-journal-plus"></i>
+
+
+                                                </button>
+                                                <button title="Reply" @onclick="() => OnReplyPreview(msg)">
+                                                    <i class="bi bi-reply"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (msg.Type == "2")
+                                    {
+
+                                        <div class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                            @* Profile image or fallback *@
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
+                                            {
+                                                <img src="@($"/downloads/profile/profile_{msg.FromUserID}.webp")"
+                                                     alt="Profile"
+                                                     class="profile-circle" />
+                                            }
+                                            else
+                                            {
+                                                <div class="profile-circle" style="background-color:@GetColorFromUserId(msg.FromUserID);">
+                                                    @GetInitials(msg.FirstName, msg.LastName)
+                                                </div>
+                                            }
+                                            <Card class="message-bubble their-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                     <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(msg.TypeCustom))
+                                                    {
+                                                        <img src="@msg.TypeCustom"
+                                                             class="chat-image"
+                                                             style="max-width:300px; border-radius:10px; cursor:pointer;"
+                                                             @onclick="() => OpenImage(msg.TypeCustom)" />
+                                                    }
+
+                                                    <div class="mt-1">@msg.Text</div>
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+
+                                       @if (showImageViewer)
+                                        {
+                                            <div class="image-viewer-backdrop" @onclick="CloseImage">
+                                                <div class="image-viewer-wrapper" @onclick:stopPropagation="true">
+                                                    <img id="zoomableImage"
+                                                         src="@currentImage"
+                                                         class="image-viewer-img"
+                                                         style="transform:scale(@zoomLevel)" />
+
+                                                    <!-- Hover Toolbar -->
+                                                    <div class="image-toolbar">
+                                                        <button class="zoom-btn" @onclick="() => AdjustZoom(0.1)">+</button>
+                                                        <button class="zoom-btn" @onclick="() => AdjustZoom(-0.1)">-</button>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Close button fixed on top-right of screen -->
+                                                <button class="close-btn" @onclick="CloseImage">×</button>
+                                            </div>
+                                        }
+
+
+
+                                    }
+
+
+                                    @if (msg.Type == "5")  //voice
+                                    {
+                                        <div class="d-flex message-bubble-container justify-content-start" style="margin-bottom:5px;align-items:flex-end;">
+                                            @* Profile image or fallback *@
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
+                                            {
+                                                <img src="@($"/downloads/profile/profile_{msg.FromUserID}.webp")"
+                                                     alt="Profile"
+                                                     class="profile-circle" />
+                                            }
+                                            else
+                                            {
+                                                <div class="profile-circle" style="background-color:@GetColorFromUserId(msg.FromUserID);">
+                                                    @GetInitials(msg.FirstName, msg.LastName)
+                                                </div>
+                                            }
+                                            <Card class="message-bubble their-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                    <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+                                                    @if (!string.IsNullOrEmpty(msg.TypeCustom))
+                                                    {
+                                                        <audio controls style="max-width:300px;">
+                                                            <source src="@msg.TypeCustom" type="audio/mpeg" />
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                    }
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                    @if (msg.Type == "6")
+                                    {
+                                        <div class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                            @* Profile image or fallback *@
+                                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
+                                            {
+                                                <img src="@($"/downloads/profile/profile_{msg.FromUserID}.webp")"
+                                                     alt="Profile"
+                                                     class="profile-circle" />
+                                            }
+                                            else
+                                            {
+                                                <div class="profile-circle" style="background-color:@GetColorFromUserId(msg.FromUserID);">
+                                                    @GetInitials(msg.FirstName, msg.LastName)
+                                                </div>
+                                            }
+                                            <Card class="message-bubble their-message">
+                                                <CardBody style="padding:8px 12px; text-align:left">
+                                                   <div class="d-flex justify-content-between align-items-center">
+                                                        <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                        <small class="text-muted ms-2" style="font-size: 0.75rem;">
+                                                            @msg.Datetime?.ToString("HH:mm")
+                                                        </small>
+                                                    </div>
+
+                                                    @if (!string.IsNullOrEmpty(msg.TypeCustom))
+                                                    {
+                                                        bool isPng = !string.IsNullOrEmpty(msg.TypeCustom) && msg.TypeCustom.Length >= 4 && 
+                                                         msg.TypeCustom.Substring(msg.TypeCustom.Length - 4).ToLower() == ".png";
+                                                        @if (isPng)
+                                                        {
+                                                            <img src="@msg.TypeCustom" style="max-width:300px; border-radius:10px;" @onclick="() => OpenImage(msg.TypeCustom)" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <div class="document-file">
+                                                                <a href="@msg.TypeCustom" target="_blank">@Path.GetFileName(msg.TypeCustom)</a>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+
+                                    else if (msg.Type == "status")
+                                    {
+                                        string statusClass = msg.Text switch
+                                        {
+                                            "Open" => "status-open",
+                                            "Close" => "status-close",
+                                            "Pending" => "status-pending",
+                                            "New" => "status-new",
+                                            _ => "status-default"
+                                        };
+
+                                        string statusLabel = msg.Text switch
+                                        {
+                                            "Open" => "🔔 Chat Opened",
+                                            "Close" => "🔕 Chat Closed",
+                                            "Pending" => "⏳ Chat Pending",
+                                            "New" => "🆕 Chat New",
+                                            _ => $"ℹ️ {msg.Text}"
+                                        };
+
+                                        <div class="d-flex justify-content-center message-bubble-container" style="margin-bottom:5px">
+                                            <Card class=@($"message-bubble status-action {statusClass}")>
+                                                <CardBody style="padding:8px 12px; text-align:center">
+                                                    <div class="fw-bold">@statusLabel</div>
+                                                    <small class="text-muted d-block">
+                                                        @msg.Datetime?.ToString("HH:mm") 
+                                                        by @msg.FirstName @msg.LastName
+                                                    </small>
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+
+                                   
+                                    else if (msg.Type == "comment")
+                                    {
+                                        <div class="d-flex justify-content-center message-bubble-container" style="margin-bottom:5px">
+                                            <Card class="message-bubble comment-message">
+                                                <CardBody style="padding:8px 12px; text-align:center">
+                                                    <div class="fw-bold">@msg.FirstName @msg.LastName</div>
+                                                    <div class="fw-bold" style="color: #0d6efd">@msg.Text</div>
+                                                    <small class="text-muted d-block">
+                                                        @msg.Datetime?.ToString("HH:mm")
+                                                    </small>
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                    else if (msg.Type == "assign")
+                                    {
+
+                                        <div class="d-flex justify-content-center message-bubble-container" style="margin-bottom:5px">
+                                            <Card class="message-bubble assignment-message">
+                                                <CardBody style="padding:8px 12px; text-align:center">
+                                                    <div class="fw-bold">📝 @msg.Text</div>
+                                                    <small class="text-muted d-block">
+                                                        @msg.Datetime?.ToString("HH:mm")
+                                                    </small>
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                    else if (msg.Type == "case")
+                                    {
+                                        <div class="d-flex justify-content-center message-bubble-container" style="margin-bottom:5px">
+                                            <Card class="message-bubble case-message">
+                                                <CardBody style="padding:8px 12px; text-align:center">
+
+                                                    @if (msg.Raw.Contains("Open"))
+                                                    {
+                                                        <div class="fw-bold text-success">
+                                                            #Case @msg.Raw
+                                                        </div>
+                                                        <div>@msg.Text</div>
+                                                    }
+                                                    else if (msg.Raw.Contains("Close") || msg.Raw.Contains("Closed"))
+                                                    {
+                                                        <div class="fw-bold text-danger">
+                                                            #Case @msg.Raw
+                                                        </div>
+                                                        <div>@msg.Text</div>
+                                                    }
+                                                    else if (msg.Raw.Contains("Pending"))
+                                                    {
+                                                        <div class="fw-bold text-warning">
+                                                            #Case @msg.Raw
+                                                        </div>
+                                                        <div>@msg.Text</div>
+                                                    }
+                                                    else if (msg.Raw.Contains("Reply"))
+                                                    {
+                                                        <div class="fw-bold text-info">
+                                                            #Case @msg.Raw
+                                                        </div>
+                                                        <div>
+                                                            @msg.Text
+
+                                                            reply:
+                                                           @*  @if (!string.IsNullOrEmpty(msg.Note))
+                                                            {
+                                                                <div class="text-muted fst-italic mt-1">Reply: @msg.Note</div>
+                                                            } *@
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="fw-bold">@msg.Text</div> @* Default *@
+                                                    }
+
+                                                    <small class="text-muted d-block">
+                                                        @msg.Datetime?.ToString("HH:mm") by @msg.FirstName @msg.LastName
+                                                    </small>
+                                                </CardBody>
+                                            </Card>
+                                        </div>
+                                    }
+                                }
+                            }
+                            else if (GroupChatInfo.ChatID != 0)
+                            {
+                                <div class="text-muted mt-5 text-center">No messages available for this chat.</div>
+                            }
+                            else
+                            {
+                                <div class="text-muted mt-5 text-center">Please select a chat.</div>
+                            }
+                        </div>
+                        
+
+                        
+                        
+
+
+
+                        @if (selectedSendAction != "comment")
+                        {
+                            
+                        
+                        
+                        
+
+
+                        <div class="m-2" style="border-radius:10px; border:1px solid #ccc;">
+                            @if (TelegramMessageReply.MessageId != 0 && selectedChatCaseStatus == "")
+                            {
+                                <div style="padding-left:10px; background-color:whitesmoke; border-radius:10px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fw-bold">
+                                            <i class="bi bi-reply"></i> Reply to : @TelegramMessageReply.FirstName @TelegramMessageReply.LastName
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-link text-danger" style="padding-right:5px" title="Close" @onclick="OnReplyCancel">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div class="mb-1"> @TelegramMessageReply.MessageId :  @TelegramMessageReply.Text</div>
+                                </div>
+                            }
+                            @if (TelegramMessageReply.MessageId != 0 && selectedChatCaseStatus != "")
+                            {
+                                 <div style="padding-left:10px; background-color:whitesmoke; border-radius:10px;">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="fw-bold">@selectedChatCaseStatus</div>
+                                        
+                                        <button type="button" class="btn btn-sm btn-link text-danger" style="padding-right:5px" title="Close" @onclick="OnReplyCancel">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <i class="bi bi-reply"></i> Reply to : @TelegramMessageReply.Text
+                                    </div>
+                                </div>
+                            }
+
+                            <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">                            
+                                <input
+                                    id="txtMessageInput"
+                                    class="form-control form-control-sm rounded-1 border px-2 py-1"
+                                    style="flex-grow: 1; resize: none; overflow-y: auto; max-height: 7em;"
+                                    @bind="newMessageText"
+                                    @bind:event="oninput"
+                                    @onkeydown="Enter"
+                                    placeholder="Type a message..."
+                                />
+                            </div>
+                            <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">
+
+
+
+                                <!-- Left side -->
+                                <Dropdown Color="DropdownColor.Info" Size="DropdownSize.Small" disabled="@(isLoadingAI || string.IsNullOrWhiteSpace(newMessageText))">
+                                    <DropdownToggleButton>
+                                            @if (isLoadingAI)
+                                            {
+                                                <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.Light" Class="me-1" />
+                                            }
+                                            else
+                                            {
+                                                <Icon Name="IconName.Stars" Color="IconColor.White" />
+                                            }
+                                    </DropdownToggleButton>
+
+                                    <DropdownMenu>
+                                           
+                                        @* <DropdownItem Type="DropdownItemType.Button"
+                                                        @onclick="@(() => SelectAction("checkspelling"))">
+                                            <Icon Name="IconName.Check" /> Check spelling
+                                        </DropdownItem> *@
+                                        
+
+                                        <DropdownItem Type="DropdownItemType.Button"
+                                                        @onclick="@(() => SelectAction("en"))">
+                                                <Icon Name="IconName.Translate" /> Translate to English
+                                        </DropdownItem>
+                                        <DropdownItem Type="DropdownItemType.Button"
+                                                        @onclick="@(() => SelectAction("km"))">
+                                                <Icon Name="IconName.Translate" /> Translate to Khmer
+                                        </DropdownItem>                                         
+                                        <DropdownItem Type="DropdownItemType.Button"
+                                                        @onclick="@(() => SelectAction("zh"))">
+                                                <Icon Name="IconName.Translate" /> Translate to Chinese
+                                        </DropdownItem>                                            
+                                    </DropdownMenu>
+                                </Dropdown>
+
+                                <Dropdown Color="DropdownColor.Warning" Size="DropdownSize.Small" disabled="@(isLoadingAI)">
+                                    <DropdownToggleButton>
+                                            @($"Auto to: {selectedLanguageAuto}")
+                                    </DropdownToggleButton>
+                                    <DropdownMenu>                                           
+                                            <DropdownItem Type="DropdownItemType.Button"
+                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "en", "English"))">
+                                                to English
+                                            </DropdownItem>
+                                            <DropdownItem Type="DropdownItemType.Button"
+                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "km", "Khmer"))">
+                                                to Khmer
+                                            </DropdownItem>
+                                            <DropdownItem Type="DropdownItemType.Button"
+                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "zh", "Chinese"))">
+                                                to Chinese
+                                            </DropdownItem>
+                                    </DropdownMenu>
+                                </Dropdown>
+
+
+
+                                <div class="d-flex align-items-center">
+                                    
+                               
+                                    <InputFile id="photo-upload" OnChange="LoadPhoto" class="d-none" accept=".jpg,.jpeg,.png" />
+                                    <label for="photo-upload" style="cursor:pointer;">
+                                        <i class="bi bi-paperclip fs-5"></i>
+                                    </label>
+
+                                 
+
+                                      @if (!isRecording)
+                                      {                                            
+                                            <button type="button" class="btn btn-link" @onclick="StartRecording" style="color: inherit;" >
+                                                <i class="bi bi-mic fs-5"></i>
+                                            </button> 
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-danger" @onclick="StopRecording">Stop Recording</button>
+                                        }
+
+
+
+                                    @if (photoBytes != null)
+                                    {
+                                        <div>
+                                            ✅ Photo selected: <strong>@photoName</strong>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="CancelPhoto">
+                                                X
+                                            </button>                                        
+                                        </div>
+                                    }
+                                    @if (selectedSendAction == "voice")
+                                    {
+                                         <div>
+                                            ✅ Recording saved. Ready to send.
+                                            <button type="button" class="btn btn-sm btn-outline-danger" @onclick="CancelVoice">
+                                                X
+                                            </button>                                        
+                                        </div>
+                                    }
+                                </div>
+
+                               
+                               
+
+
+                                @responseMessage
+
+
+
+
+
+
+                                <!-- Right side -->
+                                <div class="ms-auto">
+
+                                    @if (selectedSendAction == "photo" )
+                                    {
+                                        <button class="btn btn-primary btn-sm" @onclick="SendPhoto">
+                                               <Icon Name="IconName.Send" /> Send Photo
+                                        </button>
+                                    }
+                                    else if (selectedSendAction == "voice")
+                                    {
+                                                                         
+                                        <button class="btn btn-primary btn-sm" @onclick="SendVoice" disabled="@isSending">
+                                            <Icon Name="IconName.Send" /> @(isSending ? "Send.." : "Send Voice")
+                                        </button>                             
+                                    }
+                                    else if (selectedSendAction == "comment")
+                                    {
+                                        <Button Size="ButtonSize.Small"
+                                                style="width:80px; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px;"
+                                                class="btn btn-primary" @onclick="OnAddComment">
+                                            <Icon Name="IconName.JournalArrowUp" /> Add
+                                        </Button>
+                                    }
+                                    else if (selectedSendAction == "chat")
+                                    {
+                                        <Button Size="ButtonSize.Small"
+                                                style="width:80px; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px;" 
+                                                disabled="@(
+                                                                isSending || string.IsNullOrWhiteSpace(newMessageText)
+                                                            )"
+                                                class="btn btn-primary" @onclick="OnSend">
+                                            <Icon Name="IconName.Send" /> @(isSending ? "Send.." : "Send")
+                                        </Button>
+                                    }
+                                </div>
+                            </div>                            
+                        </div>
+                        }
+
+
+
+                        @if (selectedSendAction == "comment")
+                        {
+                            <div style="margin:0px 5px 5px 5px;border-radius:10px;padding-right:10px;padding-bottom:10px; border:1px solid #0d6efd;">
+
+                                <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 10px 10px">
+                                    <input id="txtMessageInput"
+                                           class="form-control form-control-sm rounded-1 border px-2 py-1"
+                                           style="flex-grow: 1; resize: none; overflow-y: auto; max-height: 7em;"
+                                           @bind="newMessageText"
+                                           @bind:event="oninput"
+                                           @onkeydown="Enter"
+                                           placeholder="Type a message..." />
+                                    <button type="button" class="btn btn-sm btn-outline-danger" @onclick="CancelComment">
+                                        X
+                                    </button>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <Button Size="ButtonSize.Small"
+                                            style="width:80px; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px;"
+                                            class="btn btn-primary" @onclick="OnAddComment">
+                                        <Icon Name="IconName.JournalArrowUp" /> Add
+                                    </Button>
+                                </div>
+                            </div>
+                        }
+                        @if (selectedSendAction != "comment")
+                        {
+
+                            <div class="d-flex align-items-center">
+                                <div style="margin:0px 5px 5px 5px">
+                                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
+                                            style="margin-left:10px"
+                                            @onclick="@(() => OnSelectedComment("comment"))">
+                                        <Icon Name="IconName.ChatDots"></Icon> Add comment
+                                    </button>
+                                </div>
+                                <div class="ms-auto" style="margin:0px 5px 5px 5px">
+                                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
+                                            style="margin-left:10px"
+                                            @onclick=OnShowSummary>
+                                        <Icon Name="IconName.ChatDots"></Icon> <Icon Name="IconName.Stars"></Icon> Summarize
+                                    </button>
+                                </div>
+                            </div>
+
+                        }
+
+
+                    </div>
+
+
+                </div>     
+                  
+            </div>
+
+
+            <!-- Right Sidebar (Book Panel) -->
+            @if (!IsRightCollapsed)
+            {
+                @if(GroupChatInfo.ChatID != 0)
+    {
+                    <div class="col-md-3" style="padding:0; height: 100vh; overflow-y: auto;">
+                        <MoreInfo ChatID="@GroupChatInfo.ChatID" Title="@GroupChatInfo.Title" EmpID="@userid" />
+
+                        <div class="m-2" style="border-top:1px solid gray;">
+                            <div class="d-flex align-items-center justify-content-start">
+                                <h6 class="mb-0"><strong>Cases : </strong> </h6>
+
+                                <div class="dropdown">
+                                    <button class="btn btn-sm py-0 px-1 dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                            style="font-size: 12px ; border: none; outline: none; box-shadow: none;">
+                                        @selectedFilterCase | @selectedFilterCaseSort
+                                    </button>
+
+                                    <ul class="dropdown-menu p-2" style="min-width: 120px; font-size: 0.75rem;">
+
+                                        <!-- Show section -->
+                                        <li class="fw-bold text-muted small mb-1">Show</li>
+                                        @foreach (var show in CaseStatusList)
+                                        {
+                                            <li>
+                                                <label class="dropdown-item">
+                                                    <input type="radio" name="showFilter" value="@show"
+                                                           checked="@(show == selectedFilterCase)"
+                                                           @onchange="() => OnCaseFilterChange(show)" />
+                                                    @show
+                                                </label>
+                                            </li>
+                                        }
+
+
+
+
+
+                                        <li><hr class="dropdown-divider" /></li>
+
+                                        <!-- Sort section -->
+                                        <li class="fw-bold text-muted small mb-1">Sort</li>
+                                        <li>
+                                            <label class="dropdown-item">
+                                                <input type="radio" name="sortOrder" value="Newest"
+                                                       checked="@("Newest" == selectedFilterCaseSort)"
+                                                       @onchange="@(() => OnCaseFilterChange("Newest"))" />
+                                                Newest
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label class="dropdown-item">
+                                                <input type="radio" name="sortOrder" value="Oldest"
+                                                       checked="@("Oldest" == selectedFilterCaseSort)"
+                                                       @onchange="@(() => OnCaseFilterChange("Oldest"))" />
+                                                Oldest
+                                            </label>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                       
+
+
+
+
+
+                            @if (ChatCases.Count == 0)
+                            {
+                                <div class="text-center text-muted my-4">
+                                    No cases found for this chat.
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex flex-column gap-1" style="margin-right:10px">
+                                    @foreach (var c in ChatCases)
+                                    {
+                                        <div class="card shadow-sm w-100">
+                                            <div class="card-body d-flex flex-column p-2">
+                                                <div class="card-title mb-1">
+                                                     <a href="javascript:void(0);" class="text-primary ms-1"
+                                                          title="Go to chat message"
+                                                          @onclick="() => GoToChatMessage(c.MessageID)"
+                                                          style="text-decoration: none;">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                    @c.MessageText
+                                                </div>
+                                               
+                                                <div class="small mb-1"><strong>By:</strong> @c.CaseBy</div>
+                                                <div class="small mb-1"><strong>Created:</strong> @c.CaseCreateDate</div>
+
+                                          
+
+                                                <div class="mt-auto">
+                                                    @if (c.Action != "Close" && c.Action != "Close with Reply")
+                                                    {
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm py-0 px-1 dropdown-toggle"
+                                                                    type="button"
+                                                                    data-bs-toggle="dropdown"
+                                                                    aria-expanded="false"
+                                                                    style="font-size: 0.75rem; background-color: #f0f0f0; border: none; color: #000; outline: none; box-shadow: none;">
+                                                                <span class="@StatusColors.GetValueOrDefault(c.Action, "badge bg-light text-dark") p-1" style="margin-left:-4px">
+                                                                    @c.Action
+                                                                </span>
+                                                            </button>
+
+
+                                                            <ul class="dropdown-menu p-1" style="min-width: 120px; font-size: 0.75rem;">
+                                                                @foreach (var status in CaseStatusList)
+                                                                {
+                                                                    <li>
+                                                                        <label class="dropdown-item d-flex align-items-center py-1 px-2" style="font-size: 0.75rem;">
+                                                                            <input type="radio" name="status_@c.CaseID" value="@status"
+                                                                                    checked="@(status == c.Action)"
+                                                                                    @onchange="() => OnCaseStatusChange(c, status)" class="me-1" />
+                                                                            @status
+                                                                        </label>
+                                                                    </li>
+                                                                }
+                                                            </ul>
+                                                        </div>
+                                                        
+                                                    }
+                                                    else
+                                                    {
+                                                       <span class="@StatusColors.GetValueOrDefault(c.Action, "badge bg-light text-dark") p-1">
+                                                                            @c.Action
+                                                                        </span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                            }
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-md-3" style="padding:0px">
+                        <div>please check Group Name</div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+<ConfirmDialog @ref="confirmDialog" />
+<Toasts class="p-3" Messages="messages" Placement="ToastsPlacement.BottomRight" AutoHide="true" />
+<Offcanvas @ref="offcanvas" Size="OffcanvasSize.Regular">
+    <HeaderTemplate>
+        <h5 class="mb-0">Chat Summarize: @GroupChatInfo.Title</h5>
+    </HeaderTemplate>
+    <BodyTemplate>
+        <!-- From -->
+        <div class="d-flex align-items-center mb-2 gap-2">
+            <div style="width: 50px;"><strong>From:</strong></div>
+            <DateInput TValue="DateOnly" @bind-Value="@date1Summ" Placeholder="Enter Date" class="form-control form-control-sm" style="max-width: 150px;" />
+            <TimeInput TValue="TimeOnly" @bind-Value="@time1" class="form-control form-control-sm" style="max-width: 100px;" />
+        </div>
+
+        <!-- To -->
+        <div class="d-flex align-items-center mb-3 gap-2">
+            <div style="width: 50px;"><strong>To:</strong></div>
+            <DateInput TValue="DateOnly" @bind-Value="@date2Summ" Placeholder="Enter Date" class="form-control form-control-sm" style="max-width: 150px;" />
+            <TimeInput TValue="TimeOnly" @bind-Value="@time2" class="form-control form-control-sm" style="max-width: 100px;" />
+        </div>
+
+        <!-- Button -->
+        <div class="d-flex justify-content-center mb-3 align-items-center gap-2">
+            <Button Class="btn btn-primary btn-sm" @onclick="OnSummary" disabled="@isLoadingAI">
+                Summarize
+            </Button>
+
+            @if (isLoadingAI)
+            {
+                <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.Primary" Class="ms-2" />
+            }
+        </div>
+
+
+        <!-- Summary Result -->
+        <div class="border rounded p-2" style="background-color:#f8f9fa;">
+            @((MarkupString)ConvertToHtml(summaryResult))
+        </div>
+    </BodyTemplate>
+
+
+</Offcanvas>
+
+
+<style>
+    /* === PAGE LAYOUT === */
+    .page-container {
+        display: flex;
+        height: 100vh;
+    }
+
+    /* Main chat column width fix */
+    .col-md-9 {
+        max-width: 75%; /* Bootstrap default for col-md-9 */
+        flex: 0 0 75%; /* Keep Bootstrap column width */
+        overflow-x: hidden; /* Prevent horizontal overflow */
+    }
+
+    /* === SIDEBAR === */
+    .sidebar {
+        width: 150px;
+        min-width: 0;        
+        padding: 5px 5px 5px 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        transition: width 0.3s ease, padding 0.3s ease;
+        overflow: hidden;
+    }
+
+        .sidebar.collapsed {
+            width: 0 !important;
+            padding: 0 !important;
+            border-right: none;
+        }
+    /* Sidebar buttons */
+    .sidebar-btn {
+        background-color: transparent;
+        border: none;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        transition: background-color 0.2s ease;
+        border-radius: 10px;
+        flex-shrink: 0;
+    }
+
+        .sidebar-btn:hover {
+            background-color: #e2e6ea;
+        }
+
+
+
+    /* === CONTENT AREA === */
+    .content-area {
+        flex-grow: 1;
+        transition: margin 0.3s ease;
+    }
+
+
+
+    .btn-active {
+        background-color: #0d6efd; /* Bootstrap primary */
+        color: white;
+    }
+
+    .chat-btn {
+        background-color: transparent;
+        border: none;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        transition: background-color 0.2s ease;
+        border-radius: 10px;
+        flex-shrink: 0;
+         border-bottom: 2px solid #ccc !important;
+    }
+     .chat-btn-active {
+        background-color: lightblue; /* Bootstrap primary */
+        border-bottom: 2px solid #ccc !important;
+    }
+
+    .chat-btn:hover {
+        background-color: #e0f0ff; /* Light hover color */
+        cursor: pointer; /* Optional: show pointer */
+        border-bottom: 2px solid #999 !important; /* Slightly darker border on hover */
+    }
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* === MESSAGE LIST === */
+    .message-bubble-container {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: 100%; /* Prevent pushing outside col-md-9 */
+        flex-wrap: wrap;
+        word-break: break-word;
+    }
+
+    .message-actions {
+        display: flex;
+        gap: 6px;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .message-bubble-container:hover .message-actions {
+        opacity: 1;
+    }
+
+    .message-actions button {
+        background-color: lightgray;
+        border: none;
+        padding: 4px 6px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+        .message-actions button:hover {
+            background-color: lightblue;
+        }
+
+    /* Message bubble */
+    .message-bubble {
+        display: inline-block;
+        max-width: 70%; /* Fits comfortably in col-9 with actions */
+        border-radius: 10px;
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+
+    .my-message {
+        background-color: lightblue; /* Sender bubble */
+        align-self: flex-end;
+    }
+
+    .their-message {
+        background-color: whitesmoke;
+        align-self: flex-start;
+    }
+
+    .status-action {
+       
+        color: #000;
+        border: none;
+    }
+
+   /* Open → light green */
+    .status-open {
+        background-color: #d4edda; /* soft green */
+        border-color: #c3e6cb;
+        color: #155724;
+    }
+
+    /* Close → light red/pink */
+    .status-close {
+        background-color: #f8d7da; /* soft red */
+        border-color: #f5c6cb;
+        color: #721c24;
+    }
+
+    /* Pending → light yellow */
+    .status-pending {
+        background-color: #fff3cd; /* soft yellow */
+        border-color: #ffeeba;
+        color: #856404;
+    }
+
+    /* New → light blue */
+    .status-new {
+        background-color: #cce5ff; /* soft blue */
+        border-color: #b8daff;
+        color: #004085;
+    }
+
+    .comment-message {
+        border: 1px dashed #0d6efd;
+    }
+    .modal-footer .btn {
+        padding: 0.36rem 0.5rem; /* default Bootstrap small button padding */
+        font-size: 0.875rem; /* slightly smaller text than default */
+    }
+
+    .small-dateinput input {
+        height: 30px;
+        font-size: 13px;
+        padding: 2px 6px;
+    }
+</style>
+
+<style>
+.image-viewer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.15); /* 20% transparent dark */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.image-viewer-wrapper {
+    position: relative;
+}
+
+.image-viewer-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    transition: transform 0.15s ease;
+    cursor: grab;
+}
+
+/* Close button fixed at top-right corner of screen */
+.close-btn {
+    position: fixed;
+    top: 15px;
+    right: 15px;
+    background: rgba(255, 255, 255, 0.5); 
+    color: white;
+    border: none;
+    font-size: 22px;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 2100;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Hover toolbar */
+.image-toolbar {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    display: flex;
+    gap: 5px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.image-viewer-wrapper:hover .image-toolbar {
+    opacity: 1;
+}
+
+.zoom-btn {
+    background: black;
+    border: none;
+    color: white;
+    font-size: 18px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+</style>
+<style>
+    .highlight {
+        background-color: yellow;
+        transition: background-color 2s ease;
+    }
+</style>
+<style>
+    .profile-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover; /* applies to images */
+        display: flex; /* applies to fallback div */
+        align-items: center; /* centers initials in fallback */
+        justify-content: center; /* centers initials in fallback */
+        font-weight: bold; /* for initials */
+        margin-bottom: 5px;
+        color: white; /* fallback text color */
+    }
+
+</style>
+<style>
+    .magic-pen-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%; /* circular button */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 0;
+        transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+
+        .magic-pen-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+        }
+
+        .magic-pen-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 3px 9px rgba(0,0,0,0.2);
+        }
+
+</style>

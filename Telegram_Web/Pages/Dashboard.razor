@@ -1,0 +1,444 @@
+﻿@page "/Dashboard"
+
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+
+
+
+<div style="padding:5px 20px 20px 20px;">
+
+
+
+
+    <div class="d-flex align-items-center justify-content-between" style="margin-top:-5px;border-bottom:1px solid #ccc;">
+        <h5 style="margin-bottom: 5px;">Dashboard</h5>
+    </div>
+ 
+    <div class="d-flex align-items-center gap-2 mb-2 mt-2">
+        <div><strong>From:</strong></div>
+        <div class="small-dateinput">
+            <DateInput TValue="DateOnly" @bind-Value="@date1" Placeholder="Enter Date" />
+        </div>
+        <div><strong>To:</strong></div>
+        <div class="small-dateinput">
+            <DateInput TValue="DateOnly" @bind-Value="@date2" Placeholder="Enter Date" />
+        </div>
+        <Button Class="btn btn-primary btn-sm" @onclick="OnSearch" >Search</Button>
+    </div>
+
+    <div class="d-flex" style="gap:10px;">
+        <!-- Group Chats -->
+        <div class="flex-fill">
+            <div class="card text-white bg-primary shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4>@TotalGroupChats</h4>
+                        <small>Total Group Chats</small>
+                    </div>
+                    <i class="bi bi-chat-dots fs-2"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Open Chats -->
+        <div class="flex-fill">
+            <div class="card text-white bg-success shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4>@TotalOpenChats</h4>
+                        <small>Total Open Chats</small>
+                    </div>
+                    <i class="bi bi-unlock fs-2"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Closed Chats -->
+        <div class="flex-fill">
+            <div class="card text-white bg-danger shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4>@TotalClosedChats</h4>
+                        <small>Total Closed Chats</small>
+                    </div>
+                    <i class="bi bi-lock fs-2"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assigned Employees -->
+       
+            <div class="flex-fill">
+                <NavLink class="text-decoration-none" href="/emp_monitoring">
+                    <div class="card text-white bg-warning shadow-sm">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h4>@TotalEmp / @TotalAllEmp</h4>
+                                <small>Assigned Employees</small>
+                            </div>
+                            <i class="bi bi-person fs-2"></i>
+                        </div>
+                    </div>
+                </NavLink>
+            </div>
+        
+        <!-- Assigned Teams -->
+        <div class="flex-fill">
+            <div class="card text-white bg-info shadow-sm">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4>@TotalTeam</h4>
+                        <small>Assigned Team</small>
+                    </div>
+                    <i class="bi bi-people fs-2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="d-flex gap-3" style="position: fixed; bottom: 0;right: 0;left:50px; align-items: flex-end; padding: 10px;">
+        
+        <div class="chart-container" style="flex:1;">
+            <BarChart @ref="barChart" Data="@chartData" Options="@barChartOptions" />
+        </div>
+        
+        <div class="chart-container" style="flex:1;">
+            <LineChart @ref="lineChart" Data="@lineChartData" Options="@lineChartOptions" />
+        </div>
+        
+    </div>
+
+
+   
+
+</div>
+<style>
+    .small-dateinput input {
+        height: 30px;
+        font-size: 13px;
+        padding: 2px 6px;
+    }
+
+    .chart-container {
+        width: 100%;
+    }
+
+        .chart-container canvas {
+            flex: 1 1 auto; /* allow canvas to grow and fill container height */
+        }
+</style>
+
+@code {
+    private int TotalGroupChats = 0;
+    private int TotalOpenChats = 0;
+    private int TotalClosedChats = 0;
+    private int TotalEmp = 0;
+    private int TotalAllEmp = 0;
+    private int TotalTeam = 0;
+
+
+
+    private BarChart barChart = default!;
+    private BarChartOptions barChartOptions = default!;
+    private ChartData chartData = default!;
+    private int datasetsCount = 0;
+    private int labelsCount = 0;
+    private Random random = new();
+
+    private DateOnly date1 = DateOnly.FromDateTime(DateTime.Now.AddDays(-7));
+    private DateOnly date2 = DateOnly.FromDateTime(DateTime.Now);
+
+    private LineChart lineChart = default!;
+    private ChartData lineChartData = default!;
+    private LineChartOptions lineChartOptions = default!;
+    private string _connectionString = string.Empty;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        _connectionString = Configuration.GetConnectionString("AMIS_Data");
+
+
+
+
+
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadChatCounts();
+            await LoadEmp_TeamCounts();
+
+            await LoadBarChartData();
+            await barChart.InitializeAsync(chartData, barChartOptions);
+
+            await OnLineChart();
+            await lineChart.InitializeAsync(lineChartData, lineChartOptions);
+
+            StateHasChanged();
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task OnSearch()
+    {
+        await LoadChatCounts();
+        await OnLineChart();
+
+        if (lineChart != null)
+        {
+            await lineChart.UpdateAsync(lineChartData, lineChartOptions); // ✅ pass updated data
+        }
+
+
+        await LoadBarChartData();
+        if (barChart != null)
+        {
+            await barChart.UpdateAsync(chartData, barChartOptions); // ✅ pass updated data
+        }
+    }
+    private async Task LoadBarChartData()
+    {
+        DateTime startDate = date1.ToDateTime(new TimeOnly(0, 0, 0));
+        DateTime toDate = date2.ToDateTime(new TimeOnly(23, 59, 59));
+
+        using var connection = new SqlConnection(_connectionString);
+
+        using var multi = await connection.QueryMultipleAsync(
+            "[dbo].[sp_TelegramWeb_ChatCounts]",
+            new { StartDate = startDate, ToDate = toDate },
+            commandType: CommandType.StoredProcedure
+        );
+
+        var groupChats = (await multi.ReadAsync<GroupChat>()).ToList();
+        var openChats = (await multi.ReadAsync<OpenChat>()).ToList();
+        var closeChats = (await multi.ReadAsync<CloseChat>()).ToList();
+
+        // Get all distinct dates from any dataset
+        var labels = groupChats.Select(g => g.ChatDate.ToString("MM-dd"))
+                      .Union(openChats.Select(o => o.ChatDate.ToString("MM-dd")))
+                      .Union(closeChats.Select(c => c.ChatDate.ToString("MM-dd")))
+                      .Distinct()
+                      .OrderBy(d => d)
+                      .ToList();
+
+        // Map counts to each label (fill 0 if missing)
+        var groupData = labels.Select(d =>
+            groupChats.FirstOrDefault(g => g.ChatDate.ToString("MM-dd") == d)?.GroupCount ?? 0
+        ).Select(v => (double?)v).ToList();
+
+        var openData = labels.Select(d =>
+            openChats.FirstOrDefault(o => o.ChatDate.ToString("MM-dd") == d)?.OpenCount ?? 0
+        ).Select(v => (double?)v).ToList();
+
+        var closeData = labels.Select(d =>
+            closeChats.FirstOrDefault(c => c.ChatDate.ToString("MM-dd") == d)?.CloseCount ?? 0
+        ).Select(v => (double?)v).ToList();
+
+        // Assign to chart
+        chartData = new ChartData
+        {
+            Labels = labels,
+            Datasets = new List<IChartDataset>
+            {
+                new BarChartDataset
+                {
+                    Label = "Group Chats",
+                    Data = groupData,
+                    BackgroundColor = new List<string> { "#4e73df" },
+                    BorderColor = new List<string> { "#4e73df" },
+                    BorderWidth = new List<double> { 0 }
+                },
+                new BarChartDataset
+                {
+                    Label = "Open Chats",
+                    Data = openData,
+                    BackgroundColor = new List<string> { "#1cc88a" },
+                    BorderColor = new List<string> { "#1cc88a" },
+                    BorderWidth = new List<double> { 0 }
+                },
+                new BarChartDataset
+                {
+                    Label = "Closed Chats",
+                    Data = closeData,
+                    BackgroundColor = new List<string> { "#f6c23e" },
+                    BorderColor = new List<string> { "#f6c23e" },
+                    BorderWidth = new List<double> { 0 }
+                }
+            }
+        };
+
+        // Chart options
+        barChartOptions = new BarChartOptions
+        {
+            Responsive = true
+        };
+
+        if (barChart != null)
+        {
+            await barChart.UpdateAsync(chartData, barChartOptions);
+        }
+    }
+
+
+    private async Task OnLineChart()
+    {
+        DateTime startDate = date1.ToDateTime(new TimeOnly(0, 0, 0));
+        DateTime toDate = date2.ToDateTime(new TimeOnly(23, 59, 59));
+        // Fetch from database using Dapper
+        using var connection = new SqlConnection(_connectionString);
+        var result = await connection.QueryAsync<MessageCountResult>(
+            "dbo.sp_TelegramWeb_CountMessage_Duration",
+            new { StartDate = startDate, ToDate = toDate, Duration = "10min" },
+            commandType: CommandType.StoredProcedure
+        );
+
+        // Prepare chart labels (time) and counts
+
+
+        var labels = result
+            .Select(r => $"{GetDayWithSuffix(r.IntervalStart.Day)} {r.IntervalStart:HH:mm tt}")
+            .ToList();
+            
+            
+        var counts = result.Select(r => (double?)r.MessageCount).ToList();
+
+        // Assign to chart
+        lineChartData = new ChartData
+        {
+            Labels = labels,
+            Datasets = new List<IChartDataset>
+            {
+                new LineChartDataset
+                {
+                    Label = "Count Message by 10min",
+                    BorderColor = "#4e73df",
+                    BackgroundColor = "#4e73df80",
+                    Data = counts,
+                    Fill = false,
+                    Tension = 0.3
+                }
+            }
+        };
+
+        // Chart options
+        lineChartOptions = new LineChartOptions
+        {
+            IndexAxis = "x",
+            Responsive = true,
+            Interaction = new Interaction { Mode = InteractionMode.Index, Intersect = false }
+        };
+    }
+    private string GetDayWithSuffix(int day)
+    {
+        if (day % 100 >= 11 && day % 100 <= 13)
+            return day + "th";
+
+        switch (day % 10)
+        {
+            case 1:
+                return day + "st";
+            case 2:
+                return day + "nd";
+            case 3:
+                return day + "rd";
+            default:
+                return day + "th";
+        }
+    }
+
+
+
+
+    private async Task LoadChatCounts()
+    {
+        // Convert DateOnly to DateTime
+        DateTime startDate = date1.ToDateTime(new TimeOnly(0, 0, 0));
+        DateTime toDate = date2.ToDateTime(new TimeOnly(23, 59, 59));
+
+        using var connection = new SqlConnection(_connectionString);
+
+        var result = await connection.QueryAsync(
+            "[dbo].[sp_TelegramWeb_Chatlist_Count]",
+            new { StartDate = startDate, ToDate = toDate },
+            commandType: CommandType.StoredProcedure
+        );
+
+        foreach (var row in result)
+        {
+            string status = row.Status;
+            int count = row.Count;
+
+            switch (status)
+            {
+                case "Total":
+                    TotalGroupChats = count;
+                    break;
+                case "Open":
+                    TotalOpenChats = count;
+                    break;
+                case "Close":
+                    TotalClosedChats = count;
+                    break;
+            }
+        }
+    }
+    private async Task LoadEmp_TeamCounts()
+    {
+        // Convert DateOnly to DateTime
+        DateTime startDate = date1.ToDateTime(new TimeOnly(0, 0, 0));
+        DateTime toDate = date2.ToDateTime(new TimeOnly(23, 59, 59));
+
+        using var connection = new SqlConnection(_connectionString);
+
+        var result = await connection.QueryAsync(
+            "[dbo].[sp_TelegramWeb_Emp_Team_Count]",
+            new { StartDate = startDate, ToDate = toDate },
+            commandType: CommandType.StoredProcedure
+        );
+
+        foreach (var row in result)
+        {
+            string status = row.Status;
+            int count = row.Count;
+
+            switch (status)
+            {                
+                case "EMP":
+                    TotalEmp = count;
+                    break;
+                case "ALL_EMP":
+                    TotalAllEmp = count;
+                    break;
+                case "TEAM":
+                    TotalTeam = count;
+                    break;
+            }
+        }
+    }
+    private class MessageCountResult
+    {
+        public DateTime IntervalStart { get; set; }
+        public int MessageCount { get; set; }
+    }
+    private class GroupChat
+    {
+        public DateTime ChatDate { get; set; }
+        public int GroupCount { get; set; }
+    }
+
+    private class OpenChat
+    {
+        public DateTime ChatDate { get; set; }
+        public int OpenCount { get; set; }
+    }
+
+    private class CloseChat
+    {
+        public DateTime ChatDate { get; set; }
+        public int CloseCount { get; set; }
+    }
+
+}

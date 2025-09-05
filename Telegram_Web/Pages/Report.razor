@@ -1,0 +1,123 @@
+﻿@page "/reports"
+@using Microsoft.AspNetCore.Components.Web
+<div style="position: relative; display: inline-block;">
+    <button class="btn btn-info btn-sm" @onclick="ToggleActionsMenu">
+        Actions
+    </button>
+
+    @if (showActionsMenu)
+    {
+        <div class="menu-panel" style="
+                position: absolute;
+                top: 100%;
+                left: 0;
+                z-index: 1050;
+                background: white;
+                border: 1px solid #ccc;
+                box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.15);
+                min-width: 180px;
+            ">
+            <button class="dropdown-item" @onclick="@(() => SelectAction("changetone"))">Change Tone</button>
+            <button class="dropdown-item" @onclick="@(() => SelectAction("checkspelling"))">Check Spelling</button>
+
+            <button class="dropdown-item" @onclick="ToggleLanguageMenu">Translate ▸</button>
+
+            @if (showLanguageMenu)
+            {
+                <div class="menu-panel" style="
+                            position: absolute;
+                            top: 0;
+                            left: 100%;
+                            background: white;
+                            border: 1px solid #ccc;
+                            min-width: 150px;
+                            box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,.15);
+                        ">
+                    <button class="dropdown-item" @onclick="@(() => OnSelectedLanguage("en", "English"))">English</button>
+                    <button class="dropdown-item" @onclick="@(() => OnSelectedLanguage("km", "Khmer"))">Khmer</button>
+                    <button class="dropdown-item" @onclick="@(() => OnSelectedLanguage("fr", "French"))">French</button>
+                    <button class="dropdown-item" @onclick="@(() => OnSelectedLanguage("zh", "Chinese"))">Chinese</button>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+
+
+<style>
+    .dropdown-submenu {
+        position: relative;
+    }
+
+        .dropdown-submenu > .dropdown-menu {
+            top: 0;
+            left: 100%;
+            margin-left: 0.1rem;
+            margin-right: 0.1rem;
+        }
+
+</style>
+
+@code {
+    string selectedLanguage = "";
+    string newMessageText = "";
+    string processedText = "";
+    bool isLoadingAI = false;
+    private bool showActionsMenu = false;
+    private bool showLanguageMenu = false;
+
+    private void ToggleActionsMenu()
+    {
+        showActionsMenu = !showActionsMenu;
+        if (!showActionsMenu) showLanguageMenu = false;
+    }
+
+    private void ToggleLanguageMenu()
+    {
+        showLanguageMenu = !showLanguageMenu;
+    }
+    private async Task OnSelectedLanguage(string langCode, string langName)
+    {
+        selectedLanguage = langName;
+
+        if (string.IsNullOrWhiteSpace(newMessageText))
+            return;
+
+        isLoadingAI = true;
+        try
+        {
+            // Call your translation service
+            // var translated = await TranslationService.TranslateAsync(newMessageText, langCode);
+            // newMessageText = translated;
+            // processedText = translated;
+        }
+        finally
+        {
+            isLoadingAI = false;
+        }
+    }
+
+    private async Task SelectAction(string action)
+    {
+        isLoadingAI = true;
+        processedText = "";
+        try
+        {
+            // switch (action.ToLower())
+            // {
+            //     case "changetone":
+            //         processedText = await ChangeToneAsync(newMessageText);
+            //         break;
+            //     case "checkspelling":
+            //         processedText = await CheckSpellingAsync(newMessageText);
+            //         break;
+            // }
+        }
+        finally
+        {
+            isLoadingAI = false;
+        }
+    }
+
+}

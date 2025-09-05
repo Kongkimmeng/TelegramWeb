@@ -1,36 +1,36 @@
 ﻿@page "/"
-@inject UserStateService UserState
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Index</PageTitle>
+<PageTitle>Profile</PageTitle>
 
-Please save empid = "admin" to see all
-<br />
-if save empid will see group assign only
-<br />
-Open Page as
-<h3>Welcome, @username (ID: @userid)</h3>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Profile</h4>
+                </div>
+                <div class="card-body">
+                    <p><strong>Username:</strong> @(user?.Identity?.Name ?? "Not set")</p>
+                    <p><strong>Role:</strong> @(string.Join(", ", user?.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value) ?? new List<string>()))</p>
+                    <p><strong>Employee ID:</strong> @(user?.FindFirst("EmpID")?.Value ?? "Not set")</p>
+                    <p><strong>Team:</strong> @(user?.FindFirst("Team")?.Value ?? "Not set")</p>
+                    <a class="btn btn-outline-danger btn-sm" href="/Account/Logout">Logout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-<br />
+@code {
+    private ClaimsPrincipal? user;
 
-<input @bind="username" placeholder="username" />
-<input @bind="userid" placeholder="userid" />
-
-
-<Button class="btn btn-primary" Size="ButtonSize.ExtraSmall" @onclick="SaveUser">Save</Button>
-
-<Button class="btn btn-success" Size="ButtonSize.ExtraSmall" @onclick="LoadUser">Load User</Button>
-
-@code{
-    private string username = "";
-    private string userid = "";
-    private async Task SaveUser()    
+    protected override async Task OnInitializedAsync()
     {
-        await UserState.SetUserAsync(username, userid);
-    }
-    private async Task LoadUser()
-    {
-        var result = await UserState.GetUserAsync();
-        username = result.username;
-        userid = result.userid;
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        user = authState.User;
+
+
     }
 }
