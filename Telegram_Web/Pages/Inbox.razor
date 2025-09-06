@@ -5,7 +5,7 @@
 @inject IConfiguration Configuration
 @inject ITelegramService TelegramService
 @inject ITranslationService TranslationService
-
+@inject OnlineUserService UserService
 @inject IAiService AiService
 @inject AuthenticationStateProvider AuthStateProvider
 
@@ -57,23 +57,49 @@
         <TeamManagement @ref="teamModal" CurrentUser="@userid" OnClose="OnLoadCaseOpen" />
         <EmployeeManagement @ref="EmpModal" CurrentUser="@userid" OnClose="OnLoadCaseOpen" />
 
-        <ul class="p-0">
+        <ul class="p-0" style="list-style-type: none;">
             @foreach (var team in Teams)
             {
                 var totalEmployees = allEmployees.Count(e => e.TeamName == team.TeamName);
                 var openEmployees = openCaseslist.Count(e => e.TeamName == team.TeamName && e.OpenCaseCount > 0);
-
-                <li style="list-style:none; padding-left:5px;">
+                var teamonline = 0;
+                var teamopencase = 0;
+                @foreach (var emp in openCaseslist.Where(e => e.TeamName == team.TeamName)) //&& e.OpenCaseCount > 0
+                {
+                    @if (UserService.IsUserOnline(emp.EmpID))
+                    {
+                        teamonline += 1;
+                    }
+                    teamopencase += emp.OpenCaseCount;
+                }
+                <li style="padding-left:5px;">
                     <details>
                         <summary>
-                            <strong>@team.TeamName (@openEmployees/@totalEmployees) <Icon Name="IconName.PersonPlus" @onclick="() => ShowEmpModal(team)" />  </strong>
+                            <strong>@team.TeamName (@teamonline/@totalEmployees)  <Icon Name="IconName.JournalText" @onclick="() => OnTeamCaseClick(team.TeamID)" /> @teamopencase <Icon Name="IconName.PersonPlus" @onclick="() => ShowEmpModal(team)" />   </strong>
                         </summary>
-                         
-                        <ul style="padding-left:15px;">
-                            @foreach (var emp in openCaseslist.Where(e => e.TeamName == team.TeamName && e.OpenCaseCount > 0))
+
+                        <ul style="padding-left:5px;list-style-type:none; ">
+                            @foreach (var emp in openCaseslist.Where(e => e.TeamName == team.TeamName)) //&& e.OpenCaseCount > 0
                             {
-                                <li title="@emp.ChatTitles" style="font-size:12px; list-style:disc;">
-                                    @emp.Name <span class="badge bg-success">@emp.OpenCaseCount</span>
+                                <li  @onclick="() => OnMembnerClick(emp.EmpID)" style="font-size:12px; list-style:none;  cursor:pointer">
+
+
+                                    @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_emp{emp.EmpID}.webp")))
+                                    {
+                                        <img style="border:solid 2px @(UserService.IsUserOnline(emp.EmpID)?"green":"gray")" src="@($"/downloads/profile/profile_emp{emp.EmpID}.webp")"
+                                             title="@(UserService.IsUserOnline(emp.EmpID)?"Online":"Offline"); " alt="pic"
+                                             class="profile-circle-small"  />
+                                    }
+                                    else
+                                    {
+                                        <div class="profile-circle-small" title="@(UserService.IsUserOnline(emp.EmpID)?"Online":"Offline") " style="border:solid 2px @(UserService.IsUserOnline(emp.EmpID)?"green":"gray");;width:15px;background-color:@GetColorFromUserId(long.Parse(emp.EmpID));">
+                                            @GetInitials(emp.Name, emp.Name.Split(" ")?[1])
+                                        </div>
+                                    }
+
+                                    @emp.Name <span class="badge bg-success" title="@emp.ChatTitles">@emp.OpenCaseCount</span>
+
+                                   
                                 </li>
                             }
                         </ul>
@@ -368,7 +394,7 @@
                                                             @msg.Datetime?.ToString("HH:mm")
                                                         </small>
                                                     </div>
-                                                    <div class="mt-1">@msg.Text</div> 
+                                                    <div class="mt-1">@((MarkupString)msg.Text?.Replace("\n", "<br />"))</div>
                                                 </CardBody>
                                             </Card>
 
@@ -1561,6 +1587,19 @@
         justify-content: center; /* centers initials in fallback */
         font-weight: bold; /* for initials */
         margin-bottom: 5px;
+        color: white; /* fallback text color */
+    }
+
+    .profile-circle-small {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%; 
+        /* object-fit: cover; applies to images */
+        /* display: flex;  applies to fallback div */
+        align-items: center; /* centers initials in fallback */
+        justify-content: center; /* centers initials in fallback */
+        font-weight: bold; /* for initials */
+        margin-right: 3px;
         color: white; /* fallback text color */
     }
 
