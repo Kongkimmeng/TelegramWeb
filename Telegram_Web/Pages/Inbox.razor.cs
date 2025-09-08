@@ -285,6 +285,45 @@ namespace Telegram_Web.Pages
         }
 
 
+        private async Task GetTelegramChatsByTeamIDIDAsync(int TeamID)
+        {
+            using var connection = new SqlConnection(_connectionString);
+
+            var chats = await connection.QueryAsync<TelegramChatStatus>(
+                "sp_TelegramWeb_Chatlist_GetByTeam",
+                new
+                {
+                    TeamID = TeamID,
+                    Filter = selectedAllMine,
+                    Status = selectedShow,
+                    SortOrder = selectedSort,
+                    SearchTitle = searchText,
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            chatList = chats.ToList();
+        }
+
+        private async Task GetTelegramChatsByEmpIDAsync(string empid)
+        {
+            using var connection = new SqlConnection(_connectionString);
+
+            var chats = await connection.QueryAsync<TelegramChatStatus>(
+                "sp_TelegramWeb_Chatlist_Get",
+                new
+                {
+                    EmpID = empid,
+                    Filter = "Mine",
+                    Status = selectedShow,
+                    SortOrder = selectedSort,
+                    SearchTitle = searchText,
+                },
+                commandType: CommandType.StoredProcedure
+            );
+
+            chatList = chats.ToList();
+        }
 
         private async Task OnStatusChange(string status)
         {
@@ -963,6 +1002,10 @@ namespace Telegram_Web.Pages
         }
 
 
+     
+
+       
+
         private async Task PerformSearch()
         {
             await GetTelegramChatsAsync();
@@ -1467,6 +1510,18 @@ namespace Telegram_Web.Pages
        {
             await EmpModal.ShowModal(Team);  // we'll add AddTeamAsync in child
        }
+
+        private async Task OnMembnerClick(string empid)
+        {
+            await GetTelegramChatsByEmpIDAsync(empid);
+            StateHasChanged(); // refresh UI after search
+        }
+        private async Task OnTeamCaseClick(int team)
+        {
+            await GetTelegramChatsByTeamIDIDAsync(team);
+            StateHasChanged(); // refresh UI after search
+        }
+        
 
         private string GetInitials(string firstName, string lastName)
         {

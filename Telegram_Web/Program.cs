@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Components.Web;
 using Telegram_Web.Data;
 using Telegram_Web.Services;
@@ -26,6 +27,11 @@ builder.Services.AddServerSideBlazor()
         options.DetailedErrors = true;
     });
 
+// 1. Register the user service as a singleton
+builder.Services.AddSingleton<OnlineUserService>();
+
+// 2. Register the circuit handler
+builder.Services.AddScoped<CircuitHandler, TrackingCircuitHandler>();
 
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
