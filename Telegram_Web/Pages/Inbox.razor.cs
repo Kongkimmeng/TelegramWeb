@@ -16,6 +16,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Threading.Tasks.Dataflow;
 using System.Xml.Linq;
 using Telegram_Web.Models;
 using Telegram_Web.Models.Ai;
@@ -448,23 +449,32 @@ namespace Telegram_Web.Pages
 
         private Dictionary<int, string> messageTranslations = new();
         private Dictionary<int, bool> showTranslation = new();
-        private async Task OnTranslate(int msgId, string text, string targetLang)
-        {
-            var translated = await TranslationService.TranslateAsync(text, targetLang);
-            messageTranslations[msgId] = translated;
-            showTranslation[msgId] = true; // show translation by default after translating
-            StateHasChanged();
-        }
 
+        // Toggle between original and translation
         private void ToggleTranslation(int msgId)
         {
             if (!showTranslation.ContainsKey(msgId))
-                showTranslation[msgId] = true;
+                showTranslation[msgId] = false; // first click: toggle to original
             else
-                showTranslation[msgId] = !showTranslation[msgId];
+                showTranslation[msgId] = !showTranslation[msgId]; // toggle
 
             StateHasChanged();
         }
+
+        // Runtime translation
+        private async Task OnTranslate(int msgId, string text, string targetLang)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            var translated = await TranslationService.TranslateAsync(text, targetLang);
+
+            // Store in standalone dictionary
+            messageTranslations[msgId] = translated;
+
+            StateHasChanged();
+        }
+
+
 
 
         private Task LoadChatStatus(long chatId)
@@ -599,24 +609,29 @@ namespace Telegram_Web.Pages
 
         private string OriginalText = string.Empty;
         private string? selectedtranslatelanguage = "English";
-        private string? selectedLanguageAuto = "None";
-        private string? targetLanguage = "en";
-  
-       
-        private async Task OnselectedTranslateAuto(string action, string? targetLang = null, string? languageName = null)
+        private string? selectedLanguageAuto = "Default";
+        private string targetLanguage = "None";
+        private bool IsPreviewTranslate = false;
+        private string TranslatedWord = "";
+        private void OnselectedTranslateAuto(string targetLang, string languageName)
         {
             selectedLanguageAuto = languageName;
-            targetLanguage = targetLang;          
+            targetLanguage = targetLang;
+            IsPreviewTranslate = true;
         }
 
-        private async Task OnSelectedComment(string action)
+        private void OnSelectedComment(string action)
         {
             selectedSendAction = action;
         }
+        private void CancelPreview()
+        {             
+            IsPreviewTranslate = false;
+        }
         
-        private async Task SelectAction(string action)
+        private async Task OnPreviewTranslate(string action)
         {
-            
+            IsPreviewTranslate = true;
 
             if (string.IsNullOrWhiteSpace(newMessageText))
                 return;
@@ -638,16 +653,16 @@ namespace Telegram_Web.Pages
 
                     case "en":
                         // Example: translate to Khmer                        
-                        newMessageText = await TranslationService.TranslateAsync(newMessageText, targetLang);
+                        TranslatedWord = await TranslationService.TranslateAsync(newMessageText, targetLang);
                         break;
 
                     case "km":
                         // Example: translate to Khmer
-                        newMessageText = await TranslationService.TranslateAsync(newMessageText, targetLang);
+                        TranslatedWord = await TranslationService.TranslateAsync(newMessageText, targetLang);
                         break;
                     case "zh":
                         // Example: translate to Khmer
-                        newMessageText = await TranslationService.TranslateAsync(newMessageText, targetLang);
+                        TranslatedWord = await TranslationService.TranslateAsync(newMessageText, targetLang);
                         break;
                 }
             }
@@ -661,12 +676,17 @@ namespace Telegram_Web.Pages
             }
         }
 
-        private async Task OnAiHelpAsync(string originalMessage)
+        private async Task OnAiHelpAsync(string action)
         {
-            string promptText = "";
             isLoadingAI = true;
 
-            promptText = "Please answer this question :\n\n" + originalMessage;
+            string promptText = action switch
+            {
+                "spelling" => $"Correct the spelling and grammar for the following text. Return ONLY the corrected text, nothing else:\n\n{newMessageText}",
+                "professional" => $"Rewrite the following text in a professional tone. Return ONLY the rewritten text, nothing else:\n\n{newMessageText}",
+                "friendly" => $"Rewrite the following text in a friendly and casual tone. Return ONLY the rewritten text, nothing else:\n\n{newMessageText}",
+                _ => $"Correct the spelling and grammar for the following text. Return ONLY the corrected text, nothing else::\n\n{newMessageText}"
+            };
 
             if (!string.IsNullOrWhiteSpace(promptText))
             {
@@ -686,10 +706,14 @@ namespace Telegram_Web.Pages
 
                 summaryResult = await AiService.GenerateContentAsync(request);
             }
-            newMessageText = summaryResult;
-            //await ResizeTextareaAsync();
+
+            // Keep only the trimmed result (no extra formatting)
+            newMessageText = summaryResult?.Trim();
+
             isLoadingAI = false;
         }
+
+
 
 
         private string ConvertToHtml(string rawText)
@@ -719,7 +743,7 @@ namespace Telegram_Web.Pages
 
         public async Task Enter(KeyboardEventArgs e)
         {
-            if (e.Key == "Enter")
+            if (e.Key == "Enter" && !e.ShiftKey)
             {
                 if (isSending) return; // ignore if already sending
                 isSending = true;
@@ -743,20 +767,11 @@ namespace Telegram_Web.Pages
                             await OnSend();
                             break;
                     }
-
-
-                    // 3️ Notify other users via SignalR
-                    var messageForOthers = new TelegramMessage
-                    {
-                        ChatID = GroupChatInfo.ChatID                    
-                    };
-
-                    bool result = await hubConnection.InvokeAsync<bool>("BroadcastMessage", messageForOthers);
-                    Console.WriteLine($"✅ Broadcast result: {result}");
                 }
                 finally
                 {
                     isSending = false; // unlock after sending
+
                 }
             }
         }
@@ -826,9 +841,11 @@ namespace Telegram_Web.Pages
         {
             try
             {
-                if(selectedLanguageAuto != "None")
+                if(selectedLanguageAuto != "Default")
                 {
+                    
                     newMessageText = await TranslationService.TranslateAsync(newMessageText, targetLanguage);
+                    TranslatedWord = "";
                 }
 
 
@@ -858,6 +875,7 @@ namespace Telegram_Web.Pages
                     newMessageText = "";
                     responseMessage = "Message sent successfully!";
                     TelegramMessageReply = new();
+                    await Broadcast();
                 }
                 else
                 {
@@ -983,7 +1001,19 @@ namespace Telegram_Web.Pages
             newMessageText = "";
             //await LoadMessageList(GroupChatInfo.ChatID);
 
+            await Broadcast();
         }
+
+        private async Task Broadcast()
+        {
+             // 3️ Notify other users via SignalR
+            var messageForOthers = new TelegramMessage{ChatID = GroupChatInfo.ChatID};
+            bool result = await hubConnection.InvokeAsync<bool>("BroadcastMessage", messageForOthers);
+            Console.WriteLine($"✅ Broadcast result: {result}");
+        }
+
+
+
         private async Task OnModalClosed()
         {
             long chatid = GroupChatInfo.ChatID;
@@ -1114,6 +1144,7 @@ namespace Telegram_Web.Pages
                 responseMessage = "🔥 Failed to send photo.";
             }
             selectedSendAction = "";
+            await Broadcast();
         }
 
         private async Task StartRecording()
@@ -1187,8 +1218,10 @@ namespace Telegram_Web.Pages
             {
                 responseMessage = "🔥 Failed to send voice message.";
             }
+
             isSending = false;
             selectedSendAction = "";
+            await Broadcast();
         }
 
         //private async Task LoadChatCases()
@@ -1285,10 +1318,6 @@ namespace Telegram_Web.Pages
 
 
                     await JSRuntime.InvokeVoidAsync("scrollToMessage", c.MessageID);
-
-
-
-
                     await JSRuntime.InvokeVoidAsync("focusElement", "txtMessageInput");
                 }
                 else
@@ -1322,12 +1351,7 @@ namespace Telegram_Web.Pages
                     if (confirmed)
                     {
                         await OnSaveChatCase();
-                         // trigger signalR
-                        var messageForOthers = new TelegramMessage
-                        {
-                            ChatID = GroupChatInfo.ChatID
-                        };
-                        bool result = await hubConnection.InvokeAsync<bool>("BroadcastMessage", messageForOthers);
+                        await Broadcast();
                     }
                 }
 

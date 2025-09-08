@@ -368,7 +368,9 @@
                                                             @msg.Datetime?.ToString("HH:mm")
                                                         </small>
                                                     </div>
-                                                    <div class="mt-1">@msg.Text</div> 
+                                                    <div class="mt-1">
+                                                        @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                    </div>
                                                 </CardBody>
                                             </Card>
 
@@ -401,7 +403,9 @@
                                                     {
                                                         <img src="@msg.TypeCustom" style="max-width:300px; border-radius:10px;" @onclick="() => OpenImage(msg.TypeCustom)" />
                                                     }
-                                                    <div class="mt-1">@msg.Text</div>                                                   
+                                                    <div class="mt-1">
+                                                        @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                    </div>
                                                 </CardBody>
                                             </Card>
                                         </div>
@@ -484,27 +488,52 @@
                                                         </small>
                                                     </div>
 
+
                                                     <div class="mt-1">
-                                                        @if (messageTranslations.ContainsKey(msg.ID) && showTranslation.ContainsKey(msg.ID) && showTranslation[msg.ID])
+                                                        @if (!string.IsNullOrEmpty(msg.IsTranslated))
                                                         {
-                                                            <span>@messageTranslations[msg.ID]</span>
+                                                            @if (!showTranslation.ContainsKey(msg.ID) || showTranslation[msg.ID])
+                                                            {
+                                                                <!-- Show translated first -->
+                                                                <span style="color:blue">@((MarkupString)msg.IsTranslated.Replace("\n", "<br />"))</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <!-- Show original -->
+                                                                <span>@((MarkupString)(msg.Text?.Replace("\n", "<br />") ?? ""))</span>
+                                                            }
                                                         }
                                                         else
                                                         {
-                                                            <span>@msg.Text</span>
+                                                            <!-- No translation, show original -->
+                                                            <span>@((MarkupString)(msg.Text?.Replace("\n", "<br />") ?? ""))</span>
                                                         }
-                                                    </div>
-
-                                                    <div class="mt-1">
                                                         @if (messageTranslations.ContainsKey(msg.ID))
                                                         {
+                                                            <div class="mt-1" style="border-top: 1px dashed #ccc; padding-top: 2px;">                                                               
+                                                                <span style="color:green">@messageTranslations[msg.ID]</span>
+                                                            </div>
+                                                        }
+
+                                                    </div>
+
+                                                    @if (!string.IsNullOrEmpty(msg.IsTranslated))
+                                                    {
+                                                        <div class="mt-1">
                                                             <a href="javascript:void(0);"
                                                                style="font-size:0.8rem; color:blue; text-decoration:underline; cursor:pointer;"
                                                                @onclick="() => ToggleTranslation(msg.ID)">
-                                                                @(showTranslation[msg.ID] ? "Show Original" : "Show Translation")
+                                                                @{
+                                                                    // First render: show link correctly
+                                                                    bool isShowingTranslated = showTranslation.ContainsKey(msg.ID) ? showTranslation[msg.ID] : true;
+                                                                    string linkText = isShowingTranslated ? "Show Original" : "Show Translation";
+                                                                }
+                                                                @linkText
                                                             </a>
-                                                        }
-                                                    </div>
+                                                        </div>
+                                                    }
+
+
                                                 </CardBody>
 
                                             </Card>
@@ -580,7 +609,9 @@
                                                              @onclick="() => OpenImage(msg.TypeCustom)" />
                                                     }
 
-                                                    <div class="mt-1">@msg.Text</div>
+                                                    <div class="mt-1">
+                                                        @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                    </div>
                                                 </CardBody>
                                             </Card>
                                         </div>
@@ -764,21 +795,27 @@
                                                         <div class="fw-bold text-success">
                                                             #Case @msg.Raw
                                                         </div>
-                                                        <div>@msg.Text</div>
+                                                        <div>
+                                                            @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                        </div>
                                                     }
                                                     else if (msg.Raw.Contains("Close") || msg.Raw.Contains("Closed"))
                                                     {
                                                         <div class="fw-bold text-danger">
                                                             #Case @msg.Raw
                                                         </div>
-                                                        <div>@msg.Text</div>
+                                                        <div>
+                                                            @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                        </div>
                                                     }
                                                     else if (msg.Raw.Contains("Pending"))
                                                     {
                                                         <div class="fw-bold text-warning">
                                                             #Case @msg.Raw
                                                         </div>
-                                                        <div>@msg.Text</div>
+                                                        <div>
+                                                            @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                        </div>
                                                     }
                                                     else if (msg.Raw.Contains("Reply"))
                                                     {
@@ -786,7 +823,8 @@
                                                             #Case @msg.Raw
                                                         </div>
                                                         <div>
-                                                            @msg.Text
+                                                            @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+
 
                                                             reply:
                                                            @*  @if (!string.IsNullOrEmpty(msg.Note))
@@ -797,7 +835,9 @@
                                                     }
                                                     else
                                                     {
-                                                        <div class="fw-bold">@msg.Text</div> @* Default *@
+                                                        <div class="fw-bold">
+                                                            @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                        </div> @* Default *@
                                                     }
 
                                                     <small class="text-muted d-block">
@@ -864,23 +904,82 @@
                                 </div>
                             }
 
-                            <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">                            
-                                <input
+                            @if (IsPreviewTranslate)
+                            {
+                                <div class="d-flex align-items-center justify-content-between"
+                                        style="padding:5px; background-color:whitesmoke; border-radius:10px;">
+
+                                    <!-- Left side -->
+                                    <div>
+                                        <i class="bi bi-translate"></i>: @TranslatedWord
+                                    </div>
+
+                                    <!-- Right side: Preview + X -->
+                                    <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm btn-link text-danger" style="padding-right:5px" title="Close" @onclick="CancelPreview">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                            }
+                            
+
+
+                            <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">
+                                    <div class="dropdown dropdown-rounded-sm">
+                                        <button class="btn btn-info btn-sm dropdown-toggle" type="button"
+                                                id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                                                style="outline:none; box-shadow:none;color:white">
+                                            <Icon Name="IconName.Translate" /> @($"{selectedLanguageAuto}")
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-sm" aria-labelledby="languageDropdown"
+                                            style="outline:none; box-shadow:none;">
+                                            <li>
+                                                <button class="dropdown-item" @onclick="@(() => OnselectedTranslateAuto("None", "Default"))">
+                                                    Default
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" @onclick="@(() => OnselectedTranslateAuto("en", "English"))">
+                                                    <Icon Name="IconName.Translate" /> English
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" @onclick="@(() => OnselectedTranslateAuto("km", "Khmer"))">
+                                                    <Icon Name="IconName.Translate" /> Khmer
+                                                </button>
+                                            </li>
+                                            <li>
+                                                <button class="dropdown-item" @onclick="@(() => OnselectedTranslateAuto("zh", "Chinese"))">
+                                                    <Icon Name="IconName.Translate" />  Chinese
+                                                </button>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                    <button class="btn btn-info btn-sm d-flex align-items-center gap-1" title="Preview Language"
+                                            style="border-radius:6px; padding:2px 4px;margin-left:-24px;z-index:5;outline:none; box-shadow:none;color:white"
+                                            @onclick="@(() => OnPreviewTranslate(targetLanguage))">
+                                        |<Icon Name="IconName.Eye" />
+                                    </button>
+                                <textarea
                                     id="txtMessageInput"
                                     class="form-control form-control-sm rounded-1 border px-2 py-1"
                                     style="flex-grow: 1; resize: none; overflow-y: auto; max-height: 7em;"
+                                    rows="1"
                                     @bind="newMessageText"
                                     @bind:event="oninput"
                                     @onkeydown="Enter"
                                     placeholder="Type a message..."
-                                />
+                                />                                 
+
                             </div>
-                            <div class="pt-2 d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">
+                            <div class="d-flex align-items-center gap-2" style="padding:0px 10px 0px 10px">
 
 
 
                                 <!-- Left side -->
-                                <Dropdown Color="DropdownColor.Info" Size="DropdownSize.Small" disabled="@(isLoadingAI || string.IsNullOrWhiteSpace(newMessageText))">
+                                <Dropdown class="dropdown-rounded-sm" Color="DropdownColor.Primary" Size="DropdownSize.Small" disabled="@(isLoadingAI || string.IsNullOrWhiteSpace(newMessageText))">
                                     <DropdownToggleButton>
                                             @if (isLoadingAI)
                                             {
@@ -888,54 +987,29 @@
                                             }
                                             else
                                             {
-                                                <Icon Name="IconName.Stars" Color="IconColor.White" />
+                                                <Icon Name="IconName.Stars"/>
                                             }
                                     </DropdownToggleButton>
 
-                                    <DropdownMenu>
-                                           
-                                        @* <DropdownItem Type="DropdownItemType.Button"
-                                                        @onclick="@(() => SelectAction("checkspelling"))">
-                                            <Icon Name="IconName.Check" /> Check spelling
-                                        </DropdownItem> *@
-                                        
+                                        <DropdownMenu class="dropdown-menu-sm">
 
-                                        <DropdownItem Type="DropdownItemType.Button"
-                                                        @onclick="@(() => SelectAction("en"))">
-                                                <Icon Name="IconName.Translate" /> Translate to English
+                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("spelling"))">
+                                                <Icon Name="IconName.Check2Circle" /> Check spelling
                                         </DropdownItem>
-                                        <DropdownItem Type="DropdownItemType.Button"
-                                                        @onclick="@(() => SelectAction("km"))">
-                                                <Icon Name="IconName.Translate" /> Translate to Khmer
-                                        </DropdownItem>                                         
-                                        <DropdownItem Type="DropdownItemType.Button"
-                                                        @onclick="@(() => SelectAction("zh"))">
-                                                <Icon Name="IconName.Translate" /> Translate to Chinese
-                                        </DropdownItem>                                            
+                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("professional"))">
+                                                <Icon Name="IconName.EmojiLaughing" /> Tone professional
+                                        </DropdownItem>
+                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("friendly"))">
+                                                <Icon Name="IconName.EmojiHeartEyes" /> Tone friendly
+                                        </DropdownItem>
                                     </DropdownMenu>
                                 </Dropdown>
 
-                                <Dropdown Color="DropdownColor.Warning" Size="DropdownSize.Small" disabled="@(isLoadingAI)">
-                                    <DropdownToggleButton>
-                                            @($"Auto to: {selectedLanguageAuto}")
-                                    </DropdownToggleButton>
-                                    <DropdownMenu>                                           
-                                            <DropdownItem Type="DropdownItemType.Button"
-                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "en", "English"))">
-                                                to English
-                                            </DropdownItem>
-                                            <DropdownItem Type="DropdownItemType.Button"
-                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "km", "Khmer"))">
-                                                to Khmer
-                                            </DropdownItem>
-                                            <DropdownItem Type="DropdownItemType.Button"
-                                                          @onclick="@(() => OnselectedTranslateAuto("translate", "zh", "Chinese"))">
-                                                to Chinese
-                                            </DropdownItem>
-                                    </DropdownMenu>
-                                </Dropdown>
+                                
 
-
+                            
+                                        
+                            
 
                                 <div class="d-flex align-items-center">
                                     
@@ -1062,16 +1136,16 @@
                         {
 
                             <div class="d-flex align-items-center">
-                                <div style="margin:0px 5px 5px 5px">
-                                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
-                                            style="margin-left:10px"
+                                <div style="margin:0px 5px 5px 10px">
+                                    <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
+                                            style="border-radius:12px; padding:2px 6px;"
                                             @onclick="@(() => OnSelectedComment("comment"))">
                                         <Icon Name="IconName.ChatDots"></Icon> Add comment
                                     </button>
                                 </div>
                                 <div class="ms-auto" style="margin:0px 5px 5px 5px">
-                                    <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
-                                            style="margin-left:10px"
+                                    <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
+                                            style="border-radius:12px; padding:2px 6px;"
                                             @onclick=OnShowSummary>
                                         <Icon Name="IconName.ChatDots"></Icon> <Icon Name="IconName.Stars"></Icon> Summarize
                                     </button>
@@ -1264,11 +1338,12 @@
         </div>
 
         <!-- Button -->
-        <div class="d-flex justify-content-center mb-3 align-items-center gap-2">
-            <Button Class="btn btn-primary btn-sm" @onclick="OnSummary" disabled="@isLoadingAI">
-                Summarize
-            </Button>
-
+        <div class="d-flex justify-content-center mb-3 align-items-center gap-2">         
+            <button class="btn btn-primary btn-sm d-flex align-items-center gap-1"
+                    style="border-radius:12px; padding:2px 6px;"
+                    @onclick="OnSummary" disabled="@isLoadingAI">
+                <Icon Name="IconName.ChatDots"></Icon> <Icon Name="IconName.Stars"></Icon> Summarize
+            </button>
             @if (isLoadingAI)
             {
                 <Spinner Size="SpinnerSize.Small" Color="SpinnerColor.Primary" Class="ms-2" />
@@ -1586,6 +1661,24 @@
         .magic-pen-btn:active {
             transform: scale(0.95);
             box-shadow: 0 3px 9px rgba(0,0,0,0.2);
+        }
+
+</style>
+<style>
+    .dropdown-rounded-sm .dropdown-toggle {
+        border-radius: 6px !important;
+        padding: 2px 6px !important;
+    }
+
+    .dropdown-menu-sm {
+        padding: 2px 0 !important; /* reduce inside padding */
+        font-size: 0.85rem !important; /* smaller text */
+        min-width: 120px !important; /* smaller width */
+        border-radius: 8px !important; /* softer corners */
+    }
+
+        .dropdown-menu-sm .dropdown-item {
+            padding: 4px 8px !important; /* tighter item padding */
         }
 
 </style>

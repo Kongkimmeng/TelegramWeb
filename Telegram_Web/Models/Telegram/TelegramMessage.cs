@@ -31,7 +31,8 @@
         public string? TypeCustom { get; set; }
 
         public int ReplyMessageId { get; set; }
+
+        public string? IsTranslated { get; set; }
+        
     }
-
-
 }
