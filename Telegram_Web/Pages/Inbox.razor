@@ -8,7 +8,7 @@
 @inject OnlineUserService UserService
 @inject IAiService AiService
 @inject AuthenticationStateProvider AuthStateProvider
-
+@inject SignalRService SignalRService
 
 <div class="page-container" >
     <!-- Sidebar -->
@@ -40,10 +40,10 @@
         </button>
 
 
-
-        <span style="padding-left:10px;">
-            @(hubConnection?.State == HubConnectionState.Connected ? "🟢" : "🔴")
+ @*        <span style="padding-left:10px;">
+            @(SignalRService.State == HubConnectionState.Connected ? "🟢" : "🔴")
         </span>
+ *@
 
         <hr style="margin-bottom: 0px;">
         <div class="d-flex align-items-center mb-2">
@@ -75,7 +75,7 @@
                 <li style="padding-left:5px;">
                     <details>
                         <summary>
-                            <strong>@team.TeamName (@teamonline/@totalEmployees)  <Icon Name="IconName.JournalText" @onclick="() => OnTeamCaseClick(team.TeamID)" /> @teamopencase <Icon Name="IconName.PersonPlus" @onclick="() => ShowEmpModal(team)" />   </strong>
+                            <strong>@team.TeamName (@teamonline/@totalEmployees)  @teamopencase <Icon Name="IconName.JournalText" @onclick="() => OnTeamCaseClick(team.TeamID)" /> <Icon Name="IconName.PersonPlus" @onclick="() => ShowEmpModal(team)" />   </strong>
                         </summary>
 
                         <ul style="padding-left:5px;list-style-type:none; ">
@@ -87,7 +87,7 @@
                                     @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_emp{emp.EmpID}.webp")))
                                     {
                                         <img style="border:solid 2px @(UserService.IsUserOnline(emp.EmpID)?"green":"gray")" src="@($"/downloads/profile/profile_emp{emp.EmpID}.webp")"
-                                             title="@(UserService.IsUserOnline(emp.EmpID)?"Online":"Offline"); " alt="pic"
+                                             title="@(UserService.IsUserOnline(emp.EmpID)?"Online":"Offline")" alt="pic"
                                              class="profile-circle-small"  />
                                     }
                                     else
@@ -97,9 +97,11 @@
                                         </div>
                                     }
 
-                                    @emp.Name <span class="badge bg-success" title="@emp.ChatTitles">@emp.OpenCaseCount</span>
-
-                                   
+                                    @emp.Name
+                                    @if(emp.OpenCaseCount > 0)
+                                    {
+                                        <span class="badge bg-success" title="@emp.ChatTitles">@emp.OpenCaseCount</span>
+                                    }
                                 </li>
                             }
                         </ul>
@@ -267,6 +269,12 @@
                                         <div class="text-end text-muted" style="font-size:0.8rem; white-space:nowrap; flex-shrink:0;">
                                             @g.LastMessageTime?.ToString("HH:mm")
                                         </div>
+
+                                        <!-- Favorite star -->
+                                        <button class="btn btn-link p-0 star-btn" @onclick="() => ToggleFavorite(g)">
+                                            <i class="bi @(g.IsFavorite ? "bi-star-fill text-warning" : "bi-star")"></i>
+                                        </button>
+
                                         @if (loadingChatId == g.ChatID)
                                         {
                                             <div class="ms-2 spinner-border spinner-border-sm text-primary" role="status">
@@ -287,7 +295,7 @@
             </div>
             <div  class="@MiddleColumnClass" style="border-right:solid 1px #ccc; padding-left:0px">
                 <div class="d-flex justify-content-between align-items-center"
-                     style="border-bottom:solid 1px #ccc; margin-left:0px; height:30px; padding:0 10px;">
+                     style="border-bottom:solid 1px #ccc; margin-left:0px; height:30px; padding-left:10px;">
 
                     <!-- Left side -->
                     <div class="d-flex align-items-center">
@@ -341,11 +349,15 @@
                         </ul>
 
 
-                        <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
-                                style="padding:2px 6px;"
-                                @onclick="ToggleRightSidebar">
-                            <Icon Name="IconName.JournalBookmark" class="me-1" /> More Info
-                        </button>
+                        @if (IsRightCollapsed)
+                        {
+                            <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
+                                    style="padding:2px 6px;" @onclick="ToggleRightSidebar">
+                                <Icon Name="IconName.JournalBookmark" /> More Info <Icon Name="IconName.ArrowBarLeft" />
+                            </button>
+                        }
+                       
+                       
                     </div>                    
                 </div>
                 
@@ -394,7 +406,9 @@
                                                             @msg.Datetime?.ToString("HH:mm")
                                                         </small>
                                                     </div>
-                                                    <div class="mt-1">@msg.Text</div> 
+                                                    <div class="mt-1">
+                                                        @((MarkupString)msg.Text?.Replace("\n", "<br />"))
+                                                    </div>
                                                 </CardBody>
                                             </Card>
 
@@ -786,7 +800,7 @@
                                             <Card class="message-bubble comment-message">
                                                 <CardBody style="padding:8px 12px; text-align:center">
                                                     <div class="fw-bold">@msg.FirstName @msg.LastName</div>
-                                                    <div class="fw-bold" style="color: #0d6efd">@msg.Text</div>
+                                                    <div class="fw-bold" style="color: #0d6efd">@((MarkupString)msg.Text?.Replace("\n", "<br />"))</div>
                                                     <small class="text-muted d-block">
                                                         @msg.Datetime?.ToString("HH:mm")
                                                     </small>
@@ -800,7 +814,7 @@
                                         <div class="d-flex justify-content-center message-bubble-container" style="margin-bottom:5px">
                                             <Card class="message-bubble assignment-message">
                                                 <CardBody style="padding:8px 12px; text-align:center">
-                                                    <div class="fw-bold">📝 @msg.Text</div>
+                                                    <div class="fw-bold">📝 @((MarkupString)msg.Text.Replace("\n", "<br />"))</div>
                                                     <small class="text-muted d-block">
                                                         @msg.Datetime?.ToString("HH:mm")
                                                     </small>
@@ -1015,17 +1029,20 @@
                                             }
                                     </DropdownToggleButton>
 
-                                        <DropdownMenu class="dropdown-menu-sm">
+                                    <DropdownMenu class="dropdown-menu-sm">
 
-                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("spelling"))">
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("spelling"))">
                                                 <Icon Name="IconName.Check2Circle" /> Check spelling
                                         </DropdownItem>
-                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("professional"))">
+
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("professional"))">
                                                 <Icon Name="IconName.EmojiLaughing" /> Tone professional
                                         </DropdownItem>
-                                            <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("friendly"))">
+
+                                        <DropdownItem Type="DropdownItemType.Button" @onclick="@(() => OnAiHelpAsync("friendly"))">
                                                 <Icon Name="IconName.EmojiHeartEyes" /> Tone friendly
                                         </DropdownItem>
+
                                     </DropdownMenu>
                                 </Dropdown>
 
@@ -1185,14 +1202,28 @@
                 </div>     
                   
             </div>
-
-
             <!-- Right Sidebar (Book Panel) -->
             @if (!IsRightCollapsed)
             {
                 @if(GroupChatInfo.ChatID != 0)
-    {
+        {
                     <div class="col-md-3" style="padding:0; height: 100vh; overflow-y: auto;">
+                        
+                        <div class="d-flex" style="border-bottom:solid 1px #ccc;border-top:none; margin-left:0px; height:30px">
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
+                                        style="padding:2px 6px;" @onclick="ToggleRightSidebar">
+                                    <Icon Name="IconName.ArrowBarRight" />
+                                </button>
+                                <label style="padding-left:15px; font-weight:bold;">
+                                    Info : @GroupChatInfo.Title
+                                </label>
+                            </div>
+                        </div>
+
+
+
+
                         <MoreInfo ChatID="@GroupChatInfo.ChatID" Title="@GroupChatInfo.Title" EmpID="@userid" />
 
                         <div class="m-2" style="border-top:1px solid gray;">
@@ -1717,5 +1748,18 @@
         .dropdown-menu-sm .dropdown-item {
             padding: 4px 8px !important; /* tighter item padding */
         }
+
+</style>
+<style>
+    .star-btn {
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s, color 0.2s;
+    }
+
+    .star-btn:hover {
+    transform: scale(1.2);      /* Makes the star slightly bigger */
+    color: gold;                 /* Optional: change color on hover */
+    }
 
 </style>
