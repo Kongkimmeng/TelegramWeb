@@ -2,10 +2,11 @@
 @inject IJSRuntime JS
 @inject ITelegramService TelegramService
 
+
+
+
 @if (ChatID != 0)
 {
-   
-
     <div class="m-2">
         @if (tags == null || tags.Count == 0)
         {
@@ -21,13 +22,19 @@
                         {
                             <div>
                                 <div class="mb-1">
-                                    <input class="form-control form-control-sm mb-1" placeholder="Field Name" @bind="tag.FieldName" />
+                                    <select class="form-control form-control-sm mb-1" @bind="tag.FieldID">
+                                        <option value="">--Field--</option>
+                                        @foreach (var field in predefinedFields)
+                                        {
+                                            <option value="@field.FieldID">@field.FieldName</option>
+                                        }
+                                    </select>
                                     <input class="form-control form-control-sm" placeholder="Field Value" @bind="tag.FieldValue" />
                                 </div>
                                 <div class="mt-1">
-                                    <span class="icon-btn text-success me-2" title="Save" @onclick="() => UpdateTag(tag)">✔ Save</span>
-                                    <span class="icon-btn text-danger me-2" title="Delete" @onclick="() => DeleteTag(tag.TagID)">✖ Delete</span>
-                                    <span class="icon-btn text-secondary" title="Cancel" @onclick="() => editTagId = null">✖ Cancel</span>
+                                    <span class="icon-btn text-success me-2" @onclick="() => UpdateTag(tag)">✔ Save</span>
+                                    <span class="icon-btn text-danger me-2" @onclick="() => DeleteTag(tag.TagID)">✖ Delete</span>
+                                    <span class="icon-btn text-secondary" @onclick="() => editTagId = null">✖ Cancel</span>
                                 </div>
                             </div>
                         }
@@ -35,7 +42,7 @@
                         {
                             <div class="d-flex justify-content-between align-items-center">
                                 <span><b>@tag.FieldName</b>: @tag.FieldValue</span>
-                                <span class="icon-btn text-primary" title="Edit" @onclick="() => editTagId = tag.TagID">✎</span>
+                                <span class="icon-btn text-primary" @onclick="() => editTagId = tag.TagID">✎</span>
                             </div>
                         }
                     </li>
@@ -43,35 +50,40 @@
             </ul>
         }
 
-        <!-- Add new tag input -->
         @if (showAddTagForm)
         {
             <div class="mb-2 mt-1">
                 <div class="mb-1">
-                    <input class="form-control form-control-sm mb-1" placeholder="Field Name" @bind="newFieldName" />
+                    <select class="form-control form-control-sm mb-1" @bind="newFieldID">
+                        <option value="">--Field--</option>
+                        @foreach (var field in predefinedFields)
+                        {
+                            <option value="@field.FieldID">@field.FieldName</option>
+                        }
+                    </select>
                     <input class="form-control form-control-sm" placeholder="Field Value" @bind="newFieldValue" />
                 </div>
                 <div class="mt-1">
-                    <span class="icon-btn text-success me-2" title="Save" @onclick="AddTag">✔ Save</span>
-                    <span class="icon-btn text-danger me-2" title="Cancel" @onclick="CancelAddTag">✖ Cancel</span>
+                    <span class="icon-btn text-success me-2" @onclick="AddTag">✔ Save</span>
+                    <span class="icon-btn text-danger me-2" @onclick="CancelAddTag">✖ Cancel</span>
                 </div>
             </div>
         }
         else
         {
             <div class="d-flex justify-content-end mt-2 me-2">
-                <span class="icon-btn text-success" title="Add Tag" @onclick="() => showAddTagForm = true">
+                <span class="icon-btn text-success" @onclick="() => showAddTagForm = true">
                     <Icon Name="IconName.PlusCircleFill" /> Add Tag
                 </span>
             </div>
         }
-
     </div>
 }
 else
 {
     <div>please check Group Name</div>
 }
+
 
 
 <ConfirmDialog @ref="confirmDialog" />
@@ -103,26 +115,18 @@ else
     private ConfirmDialog confirmDialog;
 
     private List<MoreInfoTag> tags = new();
-    private string newFieldName;
+    private int? newFieldID;
     private string newFieldValue;
     private bool showAddTagForm = false;
     private int? editTagId = null;
 
     string _connectionString = "";
 
+
+    private List<MoreInfoTag> predefinedFields = new();
     protected override async Task OnInitializedAsync()
     {
-        _connectionString = Configuration.GetConnectionString("AMIS_Data");
-
-      
-
-        // if (ChatID != 0)
-        // {
-        //     await LoadAssignedData();
-        //     await LoadTags();
-        //     Console.WriteLine("book1");
-        // }
-
+        _connectionString = Configuration.GetConnectionString("AMIS_Data");        
     }
 
 
@@ -132,6 +136,7 @@ else
         if (ChatID != 0)
         {
             await LoadTags();
+            await LoadPredefinedFields();
             Console.WriteLine("book2");
         }
 
@@ -150,28 +155,17 @@ else
 
     private async Task AddTag()
     {
-        if (string.IsNullOrWhiteSpace(newFieldName))
+        if (!newFieldID.HasValue)
             return;
 
-        bool confirmed = await confirmDialog.ShowAsync(
-            title: "Confirm Add",
-            message1: $"Do you want to add tag '{newFieldName}'?"
-        );
-
+        bool confirmed = await confirmDialog.ShowAsync("Confirm Add", $"Do you want to add this tag?");
         if (!confirmed) return;
 
         using var conn = new SqlConnection(_connectionString);
 
         var newId = await conn.ExecuteScalarAsync<int>(
             "sp_TelegramWeb_Tag_Add",
-            new
-            {
-                ChatID,
-                BookID = 1,
-                FieldName = newFieldName,
-                FieldValue = newFieldValue,
-                CreateBy = EmpID
-            },
+            new { ChatID, BookID = 1, FieldID = newFieldID, FieldValue = newFieldValue, CreateBy = EmpID },
             commandType: CommandType.StoredProcedure
         );
 
@@ -180,66 +174,58 @@ else
             TagID = newId,
             ChatID = ChatID,
             BookID = 1,
-            FieldName = newFieldName,
+            FieldID = newFieldID.Value,
             FieldValue = newFieldValue,
             CreateBy = EmpID,
             CreateDate = DateTime.Now
         });
 
-        newFieldName = "";
+        newFieldID = null;
         newFieldValue = "";
         showAddTagForm = false;
+        await LoadTags();
     }
 
     private async Task UpdateTag(MoreInfoTag tag)
     {
-        bool confirmed = await confirmDialog.ShowAsync(
-            title: "Confirm Update",
-            message1: $"Do you want to update tag '{tag.FieldName}'?"
-        );
-
+        bool confirmed = await confirmDialog.ShowAsync("Confirm Update", $"Do you want to update this tag?");
         if (!confirmed) return;
 
         using var conn = new SqlConnection(_connectionString);
-
         await conn.ExecuteAsync(
             "sp_TelegramWeb_Tag_Update",
-            new { tag.TagID, tag.FieldName, tag.FieldValue, UpdateBy = EmpID },
+            new { tag.TagID, FieldID = tag.FieldID, tag.FieldValue, UpdateBy = EmpID },
             commandType: CommandType.StoredProcedure
         );
 
         editTagId = null;
+        await LoadTags();
     }
 
     private void CancelAddTag()
     {
-        newFieldName = "";
+        newFieldID = null;
         newFieldValue = "";
         showAddTagForm = false;
     }
     private async Task DeleteTag(int tagId)
     {
-        bool confirmed = await confirmDialog.ShowAsync(
-            title: "Confirm Delete",
-            message1: $"Are you sure you want to delete this tag?"
-        );
-
+        bool confirmed = await confirmDialog.ShowAsync("Confirm Delete", "Are you sure you want to delete this tag?");
         if (!confirmed) return;
 
         using var conn = new SqlConnection(_connectionString);
-
-        await conn.ExecuteAsync(
-            "sp_TelegramWeb_Tag_Delete",
-            new { TagID = tagId },
-            commandType: CommandType.StoredProcedure
-        );
-
+        await conn.ExecuteAsync("sp_TelegramWeb_Tag_Delete", new { TagID = tagId }, commandType: CommandType.StoredProcedure);
         tags.RemoveAll(t => t.TagID == tagId);
     }
 
-
-
-
+    private async Task LoadPredefinedFields()
+    {
+        using var conn = new SqlConnection(_connectionString);
+        predefinedFields = (await conn.QueryAsync<MoreInfoTag>(
+            "sp_TelegramWeb_FieldGet",
+            commandType: CommandType.StoredProcedure
+        )).ToList();
+    }
 
 
 }

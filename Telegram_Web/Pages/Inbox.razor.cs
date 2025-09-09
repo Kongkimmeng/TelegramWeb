@@ -109,7 +109,7 @@ namespace Telegram_Web.Pages
         private int TotalGroupChats = 0;
         private int TotalMine = 0;
         private int TotalUnassign = 0;
-
+        private int TotalFavorite = 0;
 
         private ClaimsPrincipal? user;
         string _connectionString = string.Empty;
@@ -263,14 +263,14 @@ namespace Telegram_Web.Pages
         private async Task GetTelegramChatsAsync()
         {
             using var connection = new SqlConnection(_connectionString);
-
+            var statusFilter = string.Join(",", selectedShows);
             var chats = await connection.QueryAsync<TelegramChatStatus>(
                 "sp_TelegramWeb_Chatlist_Get",
                 new
                 {
                     EmpID = userid,
                     Filter = selectedAllMine,
-                    Status = selectedShow,
+                    Status = statusFilter,
                     SortOrder = selectedSort,
                     SearchTitle = searchText,
                     IsOtherEmpID = selectedOtherUserID
@@ -432,6 +432,9 @@ namespace Telegram_Web.Pages
                         break;
                     case "Unassign":
                         TotalUnassign = count;
+                        break;
+                    case "Favorite":
+                        TotalFavorite = count;
                         break;
                 }
             }
@@ -823,6 +826,9 @@ namespace Telegram_Web.Pages
             if (!confirmed)
                 return;
 
+
+
+
             using var connection = new SqlConnection(_connectionString);
 
             // 2. Execute the stored procedure with CaseID = 0
@@ -834,6 +840,7 @@ namespace Telegram_Web.Pages
                 MessageText = telegramMessage.Text,
                 CaseBy = userid,  // current user
                 Action = "Open",
+                Type = telegramMessage.Type,
                 Note = $"Created by {userid}"
             };
 
@@ -864,6 +871,9 @@ namespace Telegram_Web.Pages
             selectedChatCaseStatus = "";
             TelegramMessageReply = new();
             TelegramMessageReply = TelegramMessage;
+
+            await JSRuntime.InvokeVoidAsync("focusElement", "txtMessageInput");
+
         }
         private void OnReplyCancel()
         {
@@ -956,14 +966,42 @@ namespace Telegram_Web.Pages
         private async void SelectButton(string name)
         {
             selectedAllMine = name;
+
+            // Reset filters
             selectedShow = "All";
             selectedOtherUserID = "";
+
             await GetTelegramChatsAsync();
             StateHasChanged();
         }
-        private async Task OnShowChange(string value)
+
+
+        private List<string> selectedShows = new List<string> { "All" }; // default selection
+        private async Task OnShowChange(ChangeEventArgs e, string value)
         {
-            selectedShow = value;
+            bool isChecked = (bool)e.Value;
+
+            if (isChecked)
+            {
+                if (value == "All")
+                {
+                    selectedShows = new List<string> { "All" };
+                }
+                else
+                {
+                    selectedShows.Remove("All"); // remove All if any other selected
+                    if (!selectedShows.Contains(value))
+                        selectedShows.Add(value);
+                }
+            }
+            else
+            {
+                selectedShows.Remove(value);
+
+                if (selectedShows.Count == 0)
+                    selectedShows.Add("All"); // fallback to All
+            }
+
             await GetTelegramChatsAsync();
         }
         private async Task OnSortChange(string value)
@@ -1549,6 +1587,7 @@ namespace Telegram_Web.Pages
                 commandType: CommandType.StoredProcedure
             );
             await GetTelegramChatsAsync();
+            await LoadInboxCount();
         }
     }
 }
