@@ -1,6 +1,10 @@
 ﻿@page "/emp_monitoring"
 
 @inject IConfiguration Configuration
+@inject OnlineUserService UserService
+
+
+
 
 <div style="padding:5px 20px 20px 20px;">
     <div class="d-flex align-items-center justify-content-between" style="margin-top:-5px;border-bottom:1px solid #ccc;">
@@ -46,9 +50,9 @@
 
 
         <div class="fw-bold fs-4 ms-auto">
-            @TotalEmp Active / @TotalAllEmp Total
-        </div>
-
+            @TotalEmp Online / @TotalAllEmp Total
+        </div>       
+     
     </div>
 
     <div class="d-flex flex-wrap gap-3" style="padding-top:20px">
@@ -62,21 +66,21 @@
                 <p>Loading employees...</p>
             </div>
         }
-        else if (empCards == null || !empCards.Any())
+        else if (openCaseslist == null || !openCaseslist.Any())
         {
             <p>No employees found.</p>
         }
         else
         {
             <div class="d-flex flex-wrap gap-2">
-                @foreach (var emp in empCards)
+                @foreach (var emp in openCaseslist)
                 {
                     <div class="position-relative text-center">
                         <!-- Circle -->
-                        <div class="emp-circle @(emp.Assign > 0 ? "active" : "inactive") d-flex align-items-center justify-content-center">
-                            @if (!string.IsNullOrEmpty(emp.ImageDataUrl))
+                        <div class="emp-circle @(UserService.IsUserOnline(emp.EmpID) ? "active" : "inactive") d-flex align-items-center justify-content-center">
+                            @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_emp{emp.EmpID}.webp")))
                             {
-                                <img src="@emp.ImageDataUrl" style="width:90px;height:90px;object-fit:cover;border-radius:50%;" />
+                                <img src="@($"/downloads/profile/profile_emp{emp.EmpID}.webp")" style="width:90px;height:90px;object-fit:cover;border-radius:50%;" />
                             }
                             else
                             {
@@ -85,7 +89,7 @@
                         </div>
 
                         <!-- Badge -->
-                        @if (emp.Assign > 0)
+                        @if (emp.OpenCaseCount > 0)
                         {
                             <Badge Color="BadgeColor.Danger"
                                    Position="BlazorBootstrap.Position.Absolute"
@@ -94,7 +98,7 @@
                                    VisuallyHiddenText="active assignments"
                                     style="margin-top:15px"
                             >
-                                @((emp.Assign > 99) ? "99+" : emp.Assign.ToString())
+                                @((emp.OpenCaseCount > 99) ? "99+" : emp.OpenCaseCount.ToString())
                             </Badge>
                         }
                         <span style="font-size:10px; display:inline-block; max-width:100px; word-wrap:break-word; overflow-wrap:break-word;">
@@ -131,8 +135,10 @@
 
 @code {
 
-    private List<EmpCard> empCards = new();
+    List<OpenCaseResult> openCaseslist = new List<OpenCaseResult>();
+
     private List<TeamModel> TeamList = new();
+
 
     private DateOnly date1 = DateOnly.FromDateTime(DateTime.Now.AddDays(-10));
     private DateOnly date2 = DateOnly.FromDateTime(DateTime.Now);
@@ -181,14 +187,21 @@
     {
         // Call your EmpList proc with filters
         using var connection = new SqlConnection(_connectionString);
-        var result = await connection.QueryAsync<EmpCard>(
-            "sp_TelegramWeb_EmpList_Assign_Get",
-            new { TeamId = selectedTeamId, Status = selectedStatus }, // pass params
-            commandType: CommandType.StoredProcedure);
+        var result = await connection.QueryAsync<OpenCaseResult>(
+              "sp_TelegramWeb_OpenCasesWithAllEmployees",
+              new { TeamID = selectedTeamId, Assign = selectedStatus},
+              commandType: CommandType.StoredProcedure
+          );
 
+        openCaseslist = result.ToList();
 
-        empCards = result.ToList();
-    
+        foreach (var emp in openCaseslist) //&& e.OpenCaseCount > 0
+        {
+            if (UserService.IsUserOnline(emp.EmpID))
+            {
+                TotalEmp += 1;
+            }
+        }
     }
 
     private async Task LoadEmp_TeamCounts()
@@ -211,10 +224,7 @@
             int count = row.Count;
 
             switch (status)
-            {
-                case "EMP":
-                    TotalEmp = count;
-                    break;
+            {               
                 case "ALL_EMP":
                     TotalAllEmp = count;
                     break;
@@ -230,39 +240,4 @@
     }
 
 
-    private async Task SaveAllImagesToDisk()
-    {
-        // Use project folder for testing
-        string folderPath = Path.Combine(Environment.CurrentDirectory, "wwwroot", "downloads", "profile");
-        Directory.CreateDirectory(folderPath);
-
-        foreach (var emp in empCards.Where(e => !string.IsNullOrEmpty(e.ImageDataUrl)))
-        {
-            try
-            {
-                string base64Data = emp.ImageDataUrl;
-                var commaIndex = base64Data.IndexOf("base64,");
-                if (commaIndex >= 0)
-                    base64Data = base64Data.Substring(commaIndex + 7);
-
-                if (string.IsNullOrWhiteSpace(base64Data) || base64Data.Length < 50)
-                {
-                    Console.WriteLine($"skip invalid image: {emp.Name}");
-                    continue;
-                }
-
-                byte[] imageBytes = Convert.FromBase64String(base64Data);
-                string filePath = Path.Combine(folderPath, $"profile_emp{emp.EmpID}.webp");
-
-                await File.WriteAllBytesAsync(filePath, imageBytes);
-                Console.WriteLine($"save {emp.Name}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to save {emp.Name}: {ex.Message}");
-            }
-        }
-
-        Console.WriteLine($"All images saved to: {folderPath}");
-    }
 }

@@ -7,15 +7,24 @@
     <BodyTemplate>
         <div class="row">
             <!-- Left Side: Employees -->
-            <div class="col-6 p-2 employee-panel" style="border-right:solid 1px #cccc">
-              
-                <select @bind="selectedEmpId" class="custom-select" style="margin-bottom:10px">
+            <div class="col-12 p-2 employee-panel" style="border-right:solid 1px #cccc">
+                <label>Team :</label>
+                <select class="custom-select" style="width:150px" @onchange="OnTeamSelected">
+                    @foreach (var team in TeamList)
+                    {
+                        <option value="@team.TeamID">@team.TeamName</option>
+                    }
+                </select>
+
+                <label>Employee :</label>
+                <select class="custom-select" style="width:150px" @bind="selectedEmpId">
                     @foreach (var emp in EmpList)
                     {
                         <option value="@emp.EmpID">@emp.Name</option>
                     }
                 </select>
-              
+
+
                 <button class="btn btn-primary custom-btn" style="margin-bottom:2px" @onclick="OnAssign">Assign</button>
                 
 
@@ -36,7 +45,7 @@
             </div>
 
             <!-- Right Side: Teams -->
-            <div class="col-6 p-2 team-panel">
+          @*   <div class="col-6 p-2 team-panel">
                 <select @bind="selectedTeamId" class="custom-select" style="margin-bottom:10px">
                     @foreach (var team in TeamList)
                     {
@@ -59,7 +68,10 @@
                         </div>
                     }
                 }
-            </div>
+            </div> *@
+
+
+
         </div>
     </BodyTemplate>
     <FooterTemplate>
@@ -174,9 +186,7 @@
 
             using var connection = new SqlConnection(_connectionString);
 
-            // Load employee list
-            EmpList = (await connection.QueryAsync<TelegramEmpAssign>("sp_TelegramWeb_EmpList", commandType: CommandType.StoredProcedure))
-                      .ToList();
+
 
             // Load team list
             TeamList = (await connection.QueryAsync<TeamModel>("sp_TelegramWeb_TeamList", commandType: CommandType.StoredProcedure))
@@ -286,5 +296,35 @@
 
         await LoadAssignedData();
     }
+
+
+    private async Task OnTeamSelected(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var teamId))
+        {
+            selectedTeamId = teamId;
+
+            using var connection = new SqlConnection(_connectionString);
+            EmpList = (await connection.QueryAsync<TelegramEmpAssign>(
+                "sp_TelegramWeb_EmpList",
+                new { TeamID = teamId },
+                commandType: CommandType.StoredProcedure
+            )).ToList();
+
+            selectedEmpId = "";
+        }
+        else
+        {
+            EmpList = new List<TelegramEmpAssign>();
+            selectedEmpId = "";
+        }
+    }
+
+
+    private void OnEmpSelected(string empId)
+    {
+        selectedEmpId = empId;
+    }
+
 
 }

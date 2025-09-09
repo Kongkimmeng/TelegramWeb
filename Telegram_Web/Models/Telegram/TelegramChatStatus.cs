@@ -15,6 +15,8 @@
         public DateTime? CloseAt { get; set; }
         public bool IsRead { get; set; } = false; // for new/unread badge
         public bool IsAssign { get; set; }
+
+        public bool IsFavorite { get; set; }
     }
 
 }

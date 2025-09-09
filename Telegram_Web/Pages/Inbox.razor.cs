@@ -30,8 +30,8 @@ namespace Telegram_Web.Pages
 {
     public partial class Inbox
     {
-        private HubConnection? hubConnection;
-        private DateOnly date1 = DateOnly.FromDateTime(DateTime.Now.AddDays(-4));
+        //private HubConnection? hubConnection;
+        private DateOnly date1 = DateOnly.FromDateTime(DateTime.Now.AddDays(-3));
         private DateOnly date2 = DateOnly.FromDateTime(DateTime.Now);
         
 
@@ -92,7 +92,7 @@ namespace Telegram_Web.Pages
         private bool isSummaryLoading = false;
         private bool newMessageTextAdded = false;
         private bool isLoadingAI = false;
-        public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
+        //public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
 
 
 
@@ -127,8 +127,8 @@ namespace Telegram_Web.Pages
         private DotNetObjectReference<Inbox>? dotNetObjectRef;
 
 
-
-
+        string selectedOtherUserID = "";
+        string selectedOtherUserName = "";
         protected override async Task OnInitializedAsync()
         {
             var hubUrl = Configuration["SignalRHubUrl"];
@@ -151,25 +151,25 @@ namespace Telegram_Web.Pages
             //.WithAutomaticReconnect()
             //.Build();
 
-            hubConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
-            {
-                options.HttpMessageHandlerFactory = (handler) =>
-                {
-                    if (handler is HttpClientHandler clientHandler)
-                    {
-                        clientHandler.MaxRequestContentBufferSize = 1024 * 1024 * 50; // 50 MB
-                    }
-                    return handler;
-                };
-            })
-            .WithAutomaticReconnect()
-            .Build();
+            //hubConnection = new HubConnectionBuilder()
+            //.WithUrl(hubUrl, options =>
+            //{
+            //    options.HttpMessageHandlerFactory = (handler) =>
+            //    {
+            //        if (handler is HttpClientHandler clientHandler)
+            //        {
+            //            clientHandler.MaxRequestContentBufferSize = 1024 * 1024 * 50; // 50 MB
+            //        }
+            //        return handler;
+            //    };
+            //})
+            //.WithAutomaticReconnect()
+            //.Build();
 
 
 
             /////////////////////////////// SignalR /////////////////////////////
-            hubConnection.On<TelegramMessage>("ReceiveMessage", async (message) =>
+            SignalRService.HubConnection?.On<TelegramMessage>("ReceiveMessage", async (message) =>
             {
                 if (message.Datetime.HasValue)
                     message.Datetime = message.Datetime.Value.ToUniversalTime().AddHours(7);
@@ -195,12 +195,14 @@ namespace Telegram_Web.Pages
                 await LoadInboxCount();
 
 
-                messages.Add(new ToastMessage
+                if(message.Title != null)
                 {
-                    Type = ToastType.Primary,
-                    Message = $"{message.Title}: {message.Text}"
-                });
-
+                    messages.Add(new ToastMessage
+                    {
+                        Type = ToastType.Primary,
+                        Message = $"{message.Title}: {message.Text}"
+                    });
+                }
 
                 await InvokeAsync(StateHasChanged);
             });
@@ -208,16 +210,10 @@ namespace Telegram_Web.Pages
 
             try
             {
-                await hubConnection.StartAsync();
-
-                if (hubConnection.State == HubConnectionState.Connected)
+                if (SignalRService.State == HubConnectionState.Connected)
                 {
+                    await SignalRService.HubConnection.SendAsync("JoinChatSession", "-123");
                     Console.WriteLine("✅ Connected to SignalR hub");
-                    await hubConnection.SendAsync("JoinChatSession", "-123");  // maybe use userid
-                }
-                else
-                {
-                    Console.WriteLine("❌ Failed to connect");
                 }
             }
             catch (Exception ex)
@@ -227,13 +223,13 @@ namespace Telegram_Web.Pages
         }
 
         // 👇 Add this to clean up when leaving the page
-        public async ValueTask DisposeAsync()
-        {
-            if (hubConnection != null)
-            {
-                await hubConnection.DisposeAsync();
-            }
-        }
+        //public async ValueTask DisposeAsync()
+        //{
+        //    if (hubConnection != null)
+        //    {
+        //        await hubConnection.DisposeAsync();
+        //    }
+        //}
 
         protected override async Task OnAfterRenderAsync(bool firstRender)
         {
@@ -277,6 +273,7 @@ namespace Telegram_Web.Pages
                     Status = selectedShow,
                     SortOrder = selectedSort,
                     SearchTitle = searchText,
+                    IsOtherEmpID = selectedOtherUserID
                 },
                 commandType: CommandType.StoredProcedure
             );
@@ -305,25 +302,25 @@ namespace Telegram_Web.Pages
             chatList = chats.ToList();
         }
 
-        private async Task GetTelegramChatsByEmpIDAsync(string empid)
-        {
-            using var connection = new SqlConnection(_connectionString);
+        //private async Task GetTelegramChatsByEmpIDAsync(string empid)
+        //{
+        //    using var connection = new SqlConnection(_connectionString);
 
-            var chats = await connection.QueryAsync<TelegramChatStatus>(
-                "sp_TelegramWeb_Chatlist_Get",
-                new
-                {
-                    EmpID = empid,
-                    Filter = "Mine",
-                    Status = selectedShow,
-                    SortOrder = selectedSort,
-                    SearchTitle = searchText,
-                },
-                commandType: CommandType.StoredProcedure
-            );
+        //    var chats = await connection.QueryAsync<TelegramChatStatus>(
+        //        "sp_TelegramWeb_Chatlist_Get",
+        //        new
+        //        {
+        //            EmpID = empid,
+        //            Filter = "Mine",
+        //            Status = selectedShow,
+        //            SortOrder = selectedSort,
+        //            SearchTitle = searchText,
+        //        },
+        //        commandType: CommandType.StoredProcedure
+        //    );
 
-            chatList = chats.ToList();
-        }
+        //    chatList = chats.ToList();
+        //}
 
         private async Task OnStatusChange(string status)
         {
@@ -960,6 +957,7 @@ namespace Telegram_Web.Pages
         {
             selectedAllMine = name;
             selectedShow = "All";
+            selectedOtherUserID = "";
             await GetTelegramChatsAsync();
             StateHasChanged();
         }
@@ -1047,15 +1045,19 @@ namespace Telegram_Web.Pages
             await Broadcast();
         }
 
+        //private async Task Broadcast()
+        //{
+        //     // 3️ Notify other users via SignalR
+        //    var messageForOthers = new TelegramMessage{ChatID = GroupChatInfo.ChatID};
+        //    bool result = await hubConnection.InvokeAsync<bool>("BroadcastMessage", messageForOthers);
+        //    Console.WriteLine($"✅ Broadcast result: {result}");
+        //}
+
         private async Task Broadcast()
         {
-             // 3️ Notify other users via SignalR
-            var messageForOthers = new TelegramMessage{ChatID = GroupChatInfo.ChatID};
-            bool result = await hubConnection.InvokeAsync<bool>("BroadcastMessage", messageForOthers);
-            Console.WriteLine($"✅ Broadcast result: {result}");
+            var messageForOthers = new TelegramMessage { ChatID = GroupChatInfo.ChatID };
+            await SignalRService.BroadcastAsync("BroadcastMessage", messageForOthers);
         }
-
-
 
         private async Task OnModalClosed()
         {
@@ -1452,17 +1454,7 @@ namespace Telegram_Web.Pages
             }
             await LoadChatCases();
         }
-        public class OpenCaseResult
-        {
-            public string EmpID { get; set; }           
-            public string Name { get; set; }
-            public string TeamName { get; set; }
-            public int OpenCaseCount { get; set; }
-            public string OpenCaseIDs { get; set; }
-            public string ChatIDs { get; set; }
-            public string ChatTitles { get; set; } // semicolon-separated
-        }
-
+ 
 
         List<OpenCaseResult> openCaseslist = new List<OpenCaseResult>();
         List<EmployeeResult> allEmployees = new List<EmployeeResult>();
@@ -1513,8 +1505,10 @@ namespace Telegram_Web.Pages
 
         private async Task OnMembnerClick(string empid)
         {
-            await GetTelegramChatsByEmpIDAsync(empid);
-            StateHasChanged(); // refresh UI after search
+            selectedOtherUserID = empid;
+            selectedAllMine = "Mine";
+            await GetTelegramChatsAsync();
+            //StateHasChanged(); // refresh UI after search
         }
         private async Task OnTeamCaseClick(int team)
         {
@@ -1546,7 +1540,15 @@ namespace Telegram_Web.Pages
             return $"rgb({r},{g},{b})";
         }
 
-
-
+        private async Task ToggleFavorite(TelegramChatStatus chat)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            await connection.ExecuteAsync(
+                "sp_TelegramWeb_DoFavorite",
+                new { ChatID = chat.ChatID, EmpID = userid },
+                commandType: CommandType.StoredProcedure
+            );
+            await GetTelegramChatsAsync();
+        }
     }
 }

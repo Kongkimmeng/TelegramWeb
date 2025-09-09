@@ -15,6 +15,7 @@ builder.Services.AddSingleton<WeatherForecastService>();
 builder.Services.AddBlazorBootstrap();
 builder.Services.AddHttpClient();
 builder.Services.AddSession();
+builder.Services.AddSingleton<SignalRService>();
 
 
 builder.Services.AddServerSideBlazor()

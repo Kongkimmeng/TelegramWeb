@@ -3,6 +3,9 @@
 @inject NavigationManager Navigation
 @inject ProtectedLocalStorage localStorage
 @inject AuthenticationStateProvider AuthStateProvider
+@inject SignalRService SignalRService
+@inject IConfiguration Configuration
+
 
 @if (!isLoaded)
 {
@@ -43,10 +46,9 @@ else if (isAuthenticated)
         <button title="Notifications" class="nav-btn">
             <i class="bi bi-bell"></i>
         </button>
-        <button title="Help" class="nav-btn">
-            <i class="bi bi-question-circle"></i>
-        </button>
-       
+        <span>
+            @(SignalRService.State == HubConnectionState.Connected ? "🟢" : "🔴")
+        </span>
     </div>
 
     <div class="bb-page" style="font-size: 13px; margin-left:50px;">
@@ -60,18 +62,26 @@ else if (isAuthenticated)
 @code {
     private bool isLoaded = false;
     private bool isAuthenticated = false;
-
     protected override async Task OnInitializedAsync()
     {
         // Get the current authentication state
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         isAuthenticated = authState.User.Identity?.IsAuthenticated ?? false;
         isLoaded = true;
-
+       
         // Redirect only if unauthenticated
         if (!isAuthenticated)
         {
             Navigation.NavigateTo("/Account/Login", forceLoad: true);
         }
+
+        var hubUrl = Configuration["SignalRHubUrl"];
+        await SignalRService.InitializeAsync(hubUrl);
+
+        SignalRService.OnStatusChanged += StateHasChanged;
+    }
+    public void Dispose()
+    {
+        SignalRService.OnStatusChanged -= StateHasChanged;
     }
 }
