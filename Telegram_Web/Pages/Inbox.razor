@@ -17,7 +17,7 @@
             <h5 style="padding-left:15px; margin-bottom: 5px;">Inbox</h5>
             @if (!IsBtnListCollapsed)
             {
-                <button class="btn btn-outline-secondary btn-sm" style="border: none;" @onclick="ToggleButtonList">
+                <button class="btn btn-outline-dark btn-sm" style="padding:2px 6px; border: none;" @onclick="ToggleButtonList">
                     <Icon Name="IconName.ArrowBarLeft"/>
                 </button>
             }
@@ -37,6 +37,11 @@
         <button class="sidebar-btn w-100 @(selectedAllMine == "Unassigned" ? "btn-active" : "")"
                 @onclick="@(() => SelectButton("Unassigned"))">
             <Icon Name="IconName.PersonFillDash" style="padding-right: 7px" /> Unassigned  (@TotalUnassign)
+        </button>
+
+        <button class="sidebar-btn w-100 @(selectedAllMine == "Favorite" ? "btn-active" : "")"
+                @onclick="@(() => SelectButton("Favorite"))">
+            <Icon Name="IconName.StarFill" style="padding-right: 7px;" /> Favorite (@TotalFavorite)
         </button>
 
 
@@ -123,7 +128,7 @@
 
                         @if (IsBtnListCollapsed)
                         {
-                            <button class="btn btn-outline-secondary btn-sm margin-bottom: 5px;" style="border: none;" @onclick="ToggleButtonList">
+                            <button class="btn btn-outline-dark btn-sm margin-bottom: 5px;" style="padding:2px 6px; border: none;" @onclick="ToggleButtonList">
                                 <Icon Name="IconName.ArrowBarRight" />
                             </button>
                         }
@@ -145,46 +150,17 @@
 
                                 <!-- Show section -->
                                 <li class="fw-bold text-muted small mb-1">Show</li>
-                                <li>
-                                    <label class="dropdown-item">
-                                        <input type="radio" name="showFilter" value="All"
-                                               checked="@("All" == selectedShow)"
-                                               @onchange="@(() => OnShowChange("All"))" />
-                                        All
-                                    </label>
-                                </li>
-                                  <li>
-                                    <label class="dropdown-item">
-                                        <input type="radio" name="showFilter" value="New"
-                                               checked="@("New" == selectedShow)"
-                                               @onchange="@(() => OnShowChange("New"))" />
-                                        New
-                                    </label>
-                                </li>
-                                <li>
-                                    <label class="dropdown-item">
-                                        <input type="radio" name="showFilter" value="Open"
-                                               checked="@("Open" == selectedShow)"
-                                               @onchange="@(() => OnShowChange("Open"))" />
-                                        Open
-                                    </label>
-                                </li>
-                                 <li>
-                                    <label class="dropdown-item">
-                                        <input type="radio" name="showFilter" value="Pending"
-                                               checked="@("Pending" == selectedShow)"
-                                               @onchange="@(() => OnShowChange("Pending"))" />
-                                        Pending
-                                    </label>
-                                </li>                               
-                                <li>
-                                    <label class="dropdown-item">
-                                        <input type="radio" name="showFilter" value="Closed"
-                                               checked="@("Close" == selectedShow)"
-                                               @onchange="@(() => OnShowChange("Close"))" />
-                                        Closed
-                                    </label>
-                                </li>
+                                @foreach (var status in new[] { "All", "New", "Open", "Pending", "Close" })
+                                {
+                                    <li>
+                                        <label class="dropdown-item">
+                                            <input type="checkbox" value="@status"
+                                                   checked="@selectedShows.Contains(status)"
+                                                   @onchange="@((ChangeEventArgs e) => OnShowChange(e, status))" />
+                                            @status
+                                        </label>
+                                    </li>
+                                }
 
 
                                 <li><hr class="dropdown-divider" /></li>
@@ -298,13 +274,7 @@
                      style="border-bottom:solid 1px #ccc; margin-left:0px; height:30px; padding-left:10px;">
 
                     <!-- Left side -->
-                    <div class="d-flex align-items-center">
-                        @if (IsBtnListCollapsed)
-                        {
-                            <button class="btn btn-outline-secondary btn-sm" style="border: none;" @onclick="ToggleButtonList">
-                                <Icon Name="IconName.ArrowBarRight" />
-                            </button>
-                        }
+                    <div class="d-flex align-items-center">                       
                         <label style="font-weight:bold;">@GroupChatInfo.Title </label>
                        
                     </div>
@@ -356,8 +326,6 @@
                                 <Icon Name="IconName.JournalBookmark" /> More Info <Icon Name="IconName.ArrowBarLeft" />
                             </button>
                         }
-                       
-                       
                     </div>                    
                 </div>
                 
@@ -428,7 +396,7 @@
                                     }
                                     else if (msg.Type == "102")
                                     {
-                                        <div class="d-flex justify-content-end message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                        <div id="msg_@msg.MessageId" class="d-flex justify-content-end message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
                                             <Card class="message-bubble my-message">
                                                 <CardBody style="padding:8px 12px; text-align:left">
                                                     <div class="d-flex justify-content-between align-items-center">
@@ -451,7 +419,7 @@
                                     @if (msg.Type == "105")  //voice
                                     {
 
-                                        <div class="d-flex message-bubble-container justify-content-end" style="margin-bottom:5px;align-items:flex-end;">
+                                        <div id="msg_@msg.MessageId" class="d-flex message-bubble-container justify-content-end" style="margin-bottom:5px;align-items:flex-end;">
                                             <Card class="message-bubble my-message">
                                                 <CardBody style="padding:8px 12px; text-align:left">
                                                     
@@ -576,48 +544,18 @@
 
                                             </Card>
 
-                                            <div class="message-actions">
-                                                @* <button title="AI Help" @onclick="() => OnAiHelpAsync(msg.Text)"><i class="bi bi-robot"></i></button> *@
+                                            <MessageActions Msg="msg"
+                                                            ShowTranslate="true"
+                                                            OnReply="OnReplyPreview"
+                                                            OnCreateCase="OnCreateCase"
+                                                            OnTranslate="@(args => OnTranslate(args.Id, args.Text, args.Lang))" />
 
-                                                <div class="dropdown d-inline">
-                                                    <button class="btn btn-light btn-sm dropdown-toggle" type="button"
-                                                            data-bs-toggle="dropdown" aria-expanded="false">
-                                                        <i class="bi bi-translate"></i>
-                                                    </button>
-                                                    <div class="dropdown-menu p-2" style="width: 150px; max-height: 150px; overflow-y: auto;">
-                                                        <input type="text" class="form-control form-control-sm mb-2" placeholder="Search..." style="width: 100%;" />
-
-                                                        <button class="dropdown-item p-1 text-truncate"
-                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "en"))">
-                                                            English
-                                                        </button>
-                                                        <button class="dropdown-item p-1 text-truncate"
-                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "zh"))">
-                                                            Chinese
-                                                        </button>
-                                                        <button class="dropdown-item p-1 text-truncate"
-                                                                @onclick="@(() => OnTranslate(msg.ID, msg.Text, "km"))">
-                                                            Khmer
-                                                        </button>
-                                                    </div>
-
-                                                   
-                                                </div>                                 
-                                                <button title="Create Case" @onclick="() => OnCreateCase(msg)">
-                                                    <i class="bi bi-journal-plus"></i>
-
-
-                                                </button>
-                                                <button title="Reply" @onclick="() => OnReplyPreview(msg)">
-                                                    <i class="bi bi-reply"></i>
-                                                </button>
-                                            </div>
                                         </div>
                                     }
                                     else if (msg.Type == "2")
                                     {
 
-                                        <div class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                        <div id="msg_@msg.MessageId" class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
                                             @* Profile image or fallback *@
                                             @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
                                             {
@@ -652,6 +590,10 @@
                                                     </div>
                                                 </CardBody>
                                             </Card>
+                                            <MessageActions Msg="msg"
+                                                            ShowTranslate="false"
+                                                            OnReply="OnReplyPreview"
+                                                            OnCreateCase="OnCreateCase" />
                                         </div>
 
                                        @if (showImageViewer)
@@ -682,7 +624,7 @@
 
                                     @if (msg.Type == "5")  //voice
                                     {
-                                        <div class="d-flex message-bubble-container justify-content-start" style="margin-bottom:5px;align-items:flex-end;">
+                                        <div id="msg_@msg.MessageId" class="d-flex message-bubble-container justify-content-start" style="margin-bottom:5px;align-items:flex-end;">
                                             @* Profile image or fallback *@
                                             @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
                                             {
@@ -713,11 +655,15 @@
                                                     }
                                                 </CardBody>
                                             </Card>
+                                            <MessageActions Msg="msg"
+                                                            ShowTranslate="false"
+                                                            OnReply="OnReplyPreview"
+                                                            OnCreateCase="OnCreateCase" />
                                         </div>
                                     }
-                                    @if (msg.Type == "6")
+                                    @if (msg.Type == "6") //Document
                                     {
-                                        <div class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
+                                        <div id="msg_@msg.MessageId" class="d-flex justify-content-start message-bubble-container" style="margin-bottom:5px;align-items:flex-end;">
                                             @* Profile image or fallback *@
                                             @if (System.IO.File.Exists(Path.Combine("wwwroot", "downloads", "profile", $"profile_{msg.FromUserID}.webp")))
                                             {
@@ -758,6 +704,10 @@
                                                 </CardBody>
                                             </Card>
                                         </div>
+                                        <MessageActions Msg="msg"
+                                                        ShowTranslate="false"
+                                                        OnReply="OnReplyPreview"
+                                                        OnCreateCase="OnCreateCase" />
                                     }
 
                                     else if (msg.Type == "status")
@@ -865,7 +815,7 @@
 
 
                                                             reply:
-                                                           @*  @if (!string.IsNullOrEmpty(msg.Note))
+                                                           @*  @if (!string.IsNullOrEmpty(msg.))
                                                             {
                                                                 <div class="text-muted fst-italic mt-1">Reply: @msg.Note</div>
                                                             } *@
@@ -1175,7 +1125,6 @@
                         }
                         @if (selectedSendAction != "comment")
                         {
-
                             <div class="d-flex align-items-center">
                                 <div style="margin:0px 5px 5px 10px">
                                     <button class="btn btn-outline-dark btn-sm d-flex align-items-center gap-1"
@@ -1212,10 +1161,10 @@
                         <div class="d-flex" style="border-bottom:solid 1px #ccc;border-top:none; margin-left:0px; height:30px">
                             <div class="d-flex align-items-center">
                                 <button class="btn btn-sm btn-outline-dark d-flex align-items-center"
-                                        style="padding:2px 6px;" @onclick="ToggleRightSidebar">
+                                        style="padding:2px 6px; border:none" @onclick="ToggleRightSidebar">
                                     <Icon Name="IconName.ArrowBarRight" />
                                 </button>
-                                <label style="padding-left:15px; font-weight:bold;">
+                                <label style="font-weight:bold;">
                                     Info : @GroupChatInfo.Title
                                 </label>
                             </div>
@@ -1308,9 +1257,13 @@
                                                     </a>
                                                     @c.MessageText
                                                 </div>
-                                               
-                                                <div class="small mb-1"><strong>By:</strong> @c.CaseBy</div>
-                                                <div class="small mb-1"><strong>Created:</strong> @c.CaseCreateDate</div>
+
+                                                <div class="small mb-1"><strong>Created By:</strong> @c.AssignedBy (@c.AssignedAt)</div>
+                                                @if (!string.IsNullOrWhiteSpace(c.UnassignedBy))
+                                                {
+                                                    <div class="small mb-1"><strong>Closed By:</strong> @c.UnassignedBy (@c.UnassignedAt) </div>
+                                                }
+                                                
 
                                           
 

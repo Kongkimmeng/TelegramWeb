@@ -11,7 +11,9 @@
         public DateTime ActionTime { get; set; }
         public string Action { get; set; } 
 
-
-
+        public DateTime AssignedAt { get; set; }
+        public string? AssignedBy { get; set; } 
+        public DateTime UnassignedAt { get; set; }
+        public string? UnassignedBy { get; set; } 
     }
 }

@@ -5,7 +5,8 @@
         public int TagID { get; set; }
         public long ChatID { get; set; }
         public int BookID { get; set; }
-        public string FieldName { get; set; }
+        public int FieldID { get; set; }
+        public string? FieldName { get; set; }
         public string? FieldValue { get; set; }
         public DateTime CreateDate { get; set; }
         public string? CreateBy { get; set; }

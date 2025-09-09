@@ -32,7 +32,7 @@
             <select @bind="selectedStatus" class="form-select form-select-sm">
                 <option value="">-- All --</option>
                 <option value="1">Assigned</option>
-                <option value="0">UnAssign</option>
+                <option value="0">Unassigned</option>
             </select>
         </div>
         <div><strong>From:</strong></div>
@@ -195,13 +195,7 @@
 
         openCaseslist = result.ToList();
 
-        foreach (var emp in openCaseslist) //&& e.OpenCaseCount > 0
-        {
-            if (UserService.IsUserOnline(emp.EmpID))
-            {
-                TotalEmp += 1;
-            }
-        }
+        TotalEmp = UserService.GetOnlineUsersCount();
     }
 
     private async Task LoadEmp_TeamCounts()

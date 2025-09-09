@@ -1,0 +1,44 @@
+﻿<div class="message-actions">
+    @if (ShowTranslate)
+    {
+        <div class="dropdown d-inline">
+            <button class="btn btn-light btn-sm dropdown-toggle" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-translate"></i>
+            </button>
+            <div class="dropdown-menu p-2" style="width: 150px; max-height: 150px; overflow-y: auto;">
+                <input type="text" class="form-control form-control-sm mb-2" placeholder="Search..." style="width: 100%;" />
+
+                <button class="dropdown-item p-1 text-truncate"
+                        @onclick="@(() => OnTranslate.InvokeAsync((Msg.ID, Msg.Text, "en")))">
+                    English
+                </button>
+                <button class="dropdown-item p-1 text-truncate"
+                        @onclick="@(() => OnTranslate.InvokeAsync((Msg.ID, Msg.Text, "zh")))">
+                    Chinese
+                </button>
+                <button class="dropdown-item p-1 text-truncate"
+                        @onclick="@(() => OnTranslate.InvokeAsync((Msg.ID, Msg.Text, "km")))">
+                    Khmer
+                </button>
+            </div>
+        </div>
+    }
+
+    <button title="Create Case" @onclick="() => OnCreateCase.InvokeAsync(Msg)">
+        <i class="bi bi-journal-plus"></i>
+    </button>
+
+    <button title="Reply" @onclick="() => OnReply.InvokeAsync(Msg)">
+        <i class="bi bi-reply"></i>
+    </button>
+</div>
+
+@code {
+    [Parameter] public TelegramMessage Msg { get; set; } = default!;
+    [Parameter] public EventCallback<TelegramMessage> OnReply { get; set; }
+    [Parameter] public EventCallback<TelegramMessage> OnCreateCase { get; set; }
+    [Parameter] public EventCallback<(int Id, string Text, string Lang)> OnTranslate { get; set; }
+
+    [Parameter] public bool ShowTranslate { get; set; } = true; // default is true
+}
